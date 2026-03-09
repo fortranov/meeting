@@ -1,0 +1,122 @@
+:root {
+  --bg: #f3f5fb;
+  --surface: #ffffff;
+  --text: #1f2a44;
+  --muted: #6f7a94;
+  --primary: #2b68ff;
+  --accent: #e9f0ff;
+  --success: #1ca773;
+  --warning: #ff9f1c;
+  --danger: #eb5757;
+  --border: #dbe2f2;
+  --day-col: 52px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, Segoe UI, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.brand { font-weight: 700; font-size: 1.15rem; }
+.top-nav nav { display: flex; gap: 18px; }
+.top-nav a { text-decoration: none; color: var(--text); font-weight: 500; }
+
+.page { padding: 20px; }
+.plan-board { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.board-controls { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.board-controls h1 { margin: 0; font-size: 1.3rem; }
+.board-nav { display: flex; align-items: center; gap: 10px; }
+.board-nav h2 { margin: 0; font-size: 1rem; }
+.board-nav p { margin: 3px 0 0; color: var(--muted); font-size: 0.82rem; }
+.profile-btn, .board-nav button {
+  background: var(--primary); color: #fff; border: none; border-radius: 8px;
+  font-weight: 600; padding: 9px 14px; cursor: pointer;
+}
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.timeline-table { display: grid; min-width: fit-content; }
+.timeline-row { display: grid; align-items: stretch; border-bottom: 1px solid var(--border); background: #fff; }
+.timeline-row.header { position: sticky; top: 58px; z-index: 20; background: #f8faff; }
+.timeline-cell { min-height: 50px; border-right: 1px solid var(--border); padding: 8px 10px; display: flex; align-items: center; }
+.left-col { position: sticky; left: 0; z-index: 10; background: inherit; }
+.left-1 { width: 300px; min-width: 300px; max-width: 300px; }
+.left-2 { width: 150px; min-width: 150px; max-width: 150px; }
+.left-3 { width: 125px; min-width: 125px; max-width: 125px; }
+.header .timeline-cell { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+
+.item-cell { font-size: 0.86rem; }
+.item-cell.meeting { font-size: 0.92rem; background: #f8fbff; }
+.item-cell.task span { padding-left: 12px; }
+.item-cell.subtask span { padding-left: 28px; color: #4d5a7a; }
+.timeline-row.meeting { background: #f8fbff; }
+
+.status-pill { border-radius: 999px; padding: 5px 9px; font-size: 0.78rem; font-weight: 600; }
+.status-in-progress { color: var(--warning); background: #fff7e8; }
+.status-done { color: var(--success); background: #ebfff8; }
+.status-risk { color: var(--danger); background: #fff0f0; }
+.status-neutral { color: #4b5d85; background: #eef2ff; }
+
+.day-header {
+  width: var(--day-col); min-width: var(--day-col); max-width: var(--day-col);
+  flex-direction: column; justify-content: center; text-align: center; gap: 1px;
+}
+.day-header .weekday { text-transform: uppercase; font-size: 0.7rem; color: var(--muted); }
+.day-header .date { font-size: 0.8rem; font-weight: 700; color: var(--text); }
+.day-header.weekend, .day-cell.weekend { background: #eff9ef; }
+.day-header.today { background: #eef3ff; box-shadow: inset 0 -2px 0 var(--primary); }
+
+.day-cell {
+  width: var(--day-col); min-width: var(--day-col); max-width: var(--day-col);
+  justify-content: center; padding: 0;
+}
+
+.day-cell.in-range {
+  background: #edf3ff;
+  border-right-color: transparent;
+}
+
+.day-cell.in-range.range-middle {
+  border-left-color: transparent;
+}
+
+.day-cell.in-range.range-end,
+.day-cell.in-range.range-single {
+  border-right-color: var(--border);
+}
+
+.day-fill {
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  border-top: 2px solid var(--primary);
+  border-bottom: 2px solid var(--primary);
+}
+
+.day-cell.range-start .day-fill,
+.day-cell.range-single .day-fill {
+  border-left: 3px solid var(--primary);
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.day-cell.range-end .day-fill,
+.day-cell.range-single .day-fill {
+  border-right: 3px solid var(--primary);
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Портал планирования заседаний</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top-nav">
+      <div class="brand">MeetingFlow</div>
+      <nav>
+        <a href="#">Главная</a>
+        <a href="#">Заседания</a>
+        <a href="#">Задачи</a>
+        <a href="#">Команды</a>
+        <a href="#">Отчёты</a>
+      </nav>
+      <button class="profile-btn">Профиль</button>
+    </header>
+
+    <main class="page">
+      <section class="plan-board">
+        <div class="board-controls">
+          <h1>План заседаний и задач</h1>
+          <div class="board-nav">
+            <button id="prevWeek" type="button">← Неделя назад</button>
+            <div>
+              <h2 id="calendarLabel"></h2>
+              <p>Горизонтальный календарь: 35 дней в одной строке</p>
+            </div>
+            <button id="nextWeek" type="button">Неделя вперёд →</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <div id="timelineTable" class="timeline-table"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
