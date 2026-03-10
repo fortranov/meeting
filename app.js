@@ -1,11 +1,11 @@
-const VISIBLE_DAYS = 35;
+const VISIBLE_DAYS = 30;
 const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthFormatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
-const dateFormatter = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' });
+const dateFormatter  = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' });
 
-let visibleStart = startOfWeek(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-let selectedPersons = [];
-let personOptions = [];
+let visibleStart     = startOfWeek(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+let selectedPersons  = [];
+let personOptions    = [];
 let timelineMeetings = [];
 
 const timelineTable = document.getElementById('timelineTable');
@@ -17,16 +17,18 @@ async function init() {
 }
 
 function bindEvents() {
-  document.getElementById('prevWeek').onclick = async () => { visibleStart = addDays(visibleStart, -7); await loadTimeline(); };
-  document.getElementById('nextWeek').onclick = async () => { visibleStart = addDays(visibleStart, 7); await loadTimeline(); };
+  document.getElementById('prevWeek').onclick  = async () => { visibleStart = addDays(visibleStart, -7); await loadTimeline(); };
+  document.getElementById('nextWeek').onclick  = async () => { visibleStart = addDays(visibleStart,  7); await loadTimeline(); };
   document.getElementById('addMeetingBtn').onclick = () => openMeetingModal();
-  document.getElementById('saveMeeting').onclick = saveMeeting;
-  document.getElementById('saveTask').onclick = saveTask;
-  document.querySelectorAll('[data-close]').forEach(btn => btn.onclick = () => closeModal(btn.dataset.close));
+  document.getElementById('saveMeeting').onclick   = saveMeeting;
+  document.getElementById('saveTask').onclick      = saveTask;
+  document.querySelectorAll('[data-close]').forEach(btn =>
+    btn.onclick = () => closeModal(btn.dataset.close)
+  );
 
   const search = document.getElementById('personSearch');
   search.oninput = async () => {
-    const q = search.value.trim();
+    const q   = search.value.trim();
     const res = await fetch(`api.php?action=persons&q=${encodeURIComponent(q)}`);
     const data = await res.json();
     personOptions = data.persons || [];
@@ -36,49 +38,56 @@ function bindEvents() {
 
 async function loadTimeline() {
   const start = toISO(visibleStart);
-  const res = await fetch(`api.php?action=timeline&start=${start}&days=${VISIBLE_DAYS}`);
-  const data = await res.json();
+  const res   = await fetch(`api.php?action=timeline&start=${start}&days=${VISIBLE_DAYS}`);
+  const data  = await res.json();
   timelineMeetings = data.meetings || [];
   renderTimeline();
 }
 
 function renderTimeline() {
-  const days = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
+  const days  = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
   const first = monthFormatter.format(days[0]);
-  const last = monthFormatter.format(days[days.length - 1]);
+  const last  = monthFormatter.format(days[days.length - 1]);
   calendarLabel.textContent = first === last ? first : `${first} — ${last}`;
 
-  let rows = [];
+  const rows = [];
   timelineMeetings.forEach(m => {
-    rows.push({ type: 'meeting', id: m.id, meetingId: m.id, parentTaskId: '', title: m.title, start: m.meeting_date, end: m.meeting_date, status: 'В работе', meta: m });
+    rows.push({ type: 'meeting', id: m.id, meetingId: m.id, title: m.title, start: m.meeting_date, end: m.meeting_date, status: '', level: 0 });
     (m.tasks || []).forEach(t => pushTaskRows(rows, t, m.id, 0));
   });
 
+  const tpl = colTemplate(days.length);
+
   const header = `
-    <div class="timeline-row header" style="grid-template-columns:${colTemplate(days.length)}">
+    <div class="timeline-row header" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-1">Заседание / задача</div>
-      <div class="timeline-cell left-col left-2" style="left:340px">Сроки</div>
-      <div class="timeline-cell left-col left-3" style="left:520px">Статус</div>
+      <div class="timeline-cell left-col left-2">Сроки</div>
+      <div class="timeline-cell left-col left-3">Статус</div>
       ${days.map(renderDayHeader).join('')}
     </div>`;
 
   const body = rows.map(r => `
-    <div class="timeline-row ${r.type}" style="grid-template-columns:${colTemplate(days.length)}">
-      <div class="timeline-cell left-col left-1 item-cell lvl-${r.level || 0}">
+    <div class="timeline-row ${r.type}" style="grid-template-columns:${tpl}">
+      <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}">
         <span>${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
       </div>
-      <div class="timeline-cell left-col left-2" style="left:340px">${formatPeriod(r.start, r.end)}</div>
-      <div class="timeline-cell left-col left-3" style="left:520px">${r.status}</div>
+      <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
+      <div class="timeline-cell left-col left-3">${r.status ? statusPill(r.status) : ''}</div>
       ${days.map(d => renderRangeCell(d, r.start, r.end)).join('')}
-    </div>
-  `).join('');
+    </div>`).join('');
 
   timelineTable.innerHTML = header + body;
 
-  document.querySelectorAll('[data-action="edit-meeting"]').forEach(btn => btn.onclick = () => openMeetingModal(Number(btn.dataset.id)));
-  document.querySelectorAll('[data-action="add-task"]').forEach(btn => btn.onclick = () => openTaskModal({ meetingId: Number(btn.dataset.meeting), parentTaskId: btn.dataset.parent || '' }));
-  document.querySelectorAll('[data-action="edit-task"]').forEach(btn => btn.onclick = () => openTaskModal({ taskId: Number(btn.dataset.id), meetingId: Number(btn.dataset.meeting) }));
+  timelineTable.querySelectorAll('[data-action="edit-meeting"]').forEach(btn =>
+    btn.onclick = () => openMeetingModal(Number(btn.dataset.id))
+  );
+  timelineTable.querySelectorAll('[data-action="add-task"]').forEach(btn =>
+    btn.onclick = () => openTaskModal({ meetingId: Number(btn.dataset.meeting), parentTaskId: btn.dataset.parent || '' })
+  );
+  timelineTable.querySelectorAll('[data-action="edit-task"]').forEach(btn =>
+    btn.onclick = () => openTaskModal({ taskId: Number(btn.dataset.id), meetingId: Number(btn.dataset.meeting) })
+  );
 }
 
 function pushTaskRows(rows, task, meetingId, level) {
@@ -86,26 +95,33 @@ function pushTaskRows(rows, task, meetingId, level) {
     type: 'task',
     id: task.id,
     meetingId,
-    parentTaskId: task.parent_task_id || '',
     title: task.title,
     start: task.start_date,
     end: task.end_date,
     status: task.status,
     level: level + 1,
-    persons: task.responsible || '',
-    raw: task,
   });
   (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1));
 }
 
+const addSvg  = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`;
+const editSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/></svg>`;
+
 function renderActions(row) {
-  if (row.type === 'meeting') return `<button data-action="add-task" data-meeting="${row.meetingId}">＋</button><button data-action="edit-meeting" data-id="${row.meetingId}">✎</button>`;
-  return `<button data-action="add-task" data-meeting="${row.meetingId}" data-parent="${row.id}">＋</button><button data-action="edit-task" data-id="${row.id}" data-meeting="${row.meetingId}">✎</button>`;
+  const addBtn = `<button class="btn-icon" title="Добавить задачу" data-action="add-task" data-meeting="${row.meetingId}"${row.type !== 'meeting' ? ` data-parent="${row.id}"` : ''}>${addSvg}</button>`;
+  const editBtn = row.type === 'meeting'
+    ? `<button class="btn-icon" title="Редактировать заседание" data-action="edit-meeting" data-id="${row.meetingId}">${editSvg}</button>`
+    : `<button class="btn-icon" title="Редактировать задачу"    data-action="edit-task"    data-id="${row.id}" data-meeting="${row.meetingId}">${editSvg}</button>`;
+  return addBtn + editBtn;
 }
 
 function renderDayHeader(day) {
   const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
-  return `<div class="timeline-cell day-header ${weekend}"><span>${weekdays[(day.getDay() + 6) % 7]}</span><strong>${day.getDate()}</strong></div>`;
+  const today   = toISO(day) === toISO(new Date()) ? 'today' : '';
+  return `<div class="timeline-cell day-header ${weekend} ${today}">
+    <span class="weekday">${weekdays[(day.getDay() + 6) % 7]}</span>
+    <strong class="date">${day.getDate()}</strong>
+  </div>`;
 }
 
 function renderRangeCell(day, start, end) {
@@ -116,9 +132,14 @@ function renderRangeCell(day, start, end) {
   return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="day-fill"></div></div>`;
 }
 
+function statusPill(status) {
+  const map = { 'Сделано': 'done', 'Риск': 'risk', 'В работе': 'in-progress' };
+  return `<span class="status-pill status-${map[status] || 'neutral'}">${escapeHtml(status)}</span>`;
+}
+
 function openMeetingModal(id = null) {
-  const modal = document.getElementById('meetingModal');
-  modal.classList.remove('hidden');
+  document.getElementById('meetingModal').classList.remove('hidden');
+  document.getElementById('meetingModalTitle').textContent = id ? 'Редактировать заседание' : 'Создать заседание';
   if (!id) {
     meetingId.value = '';
     meetingName.value = '';
@@ -127,31 +148,32 @@ function openMeetingModal(id = null) {
     return;
   }
   const m = timelineMeetings.find(x => x.id === id);
-  meetingId.value = m.id;
-  meetingName.value = m.title;
-  meetingDate.value = m.meeting_date;
+  if (!m) return;
+  meetingId.value    = m.id;
+  meetingName.value  = m.title;
+  meetingDate.value  = m.meeting_date;
   meetingTopic.value = m.topic;
 }
 
-function openTaskModal({ taskId = null, meetingId, parentTaskId = '' }) {
-  const modal = document.getElementById('taskModal');
-  modal.classList.remove('hidden');
+function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
+  document.getElementById('taskModal').classList.remove('hidden');
+  document.getElementById('taskModalTitle').textContent = taskId ? 'Редактировать задачу' : 'Создать задачу';
   selectedPersons = [];
   renderSelectedPersons();
-  taskIdInput.value = taskId || '';
-  taskMeetingId.value = meetingId;
-  taskParentId.value = parentTaskId;
-  taskTitle.value = '';
-  taskStart.value = toISO(new Date());
-  taskEnd.value = toISO(new Date());
-  taskStatus.value = 'В работе';
+  taskIdInput.value    = taskId || '';
+  taskMeetingId.value  = mid;
+  taskParentId.value   = parentTaskId;
+  taskTitle.value      = '';
+  taskStart.value      = toISO(new Date());
+  taskEnd.value        = toISO(new Date());
+  taskStatus.value     = 'В работе';
 
   if (taskId) {
     const task = findTask(taskId, timelineMeetings);
     if (task) {
-      taskTitle.value = task.title;
-      taskStart.value = task.start_date;
-      taskEnd.value = task.end_date;
+      taskTitle.value  = task.title;
+      taskStart.value  = task.start_date;
+      taskEnd.value    = task.end_date;
       taskStatus.value = task.status;
       if (task.responsible) {
         selectedPersons = task.responsible.split(',').map((name, idx) => ({ id: -idx - 1, full_name: name.trim() }));
@@ -163,7 +185,7 @@ function openTaskModal({ taskId = null, meetingId, parentTaskId = '' }) {
 
 async function saveMeeting() {
   const payload = { id: meetingId.value, title: meetingName.value, meeting_date: meetingDate.value, topic: meetingTopic.value };
-  const res = await fetch('api.php?action=meeting_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res  = await fetch('api.php?action=meeting_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('meetingModal');
@@ -172,16 +194,16 @@ async function saveMeeting() {
 
 async function saveTask() {
   const payload = {
-    id: taskIdInput.value,
-    meeting_id: Number(taskMeetingId.value),
+    id:             taskIdInput.value,
+    meeting_id:     Number(taskMeetingId.value),
     parent_task_id: taskParentId.value || null,
-    title: taskTitle.value,
-    start_date: taskStart.value,
-    end_date: taskEnd.value,
-    status: taskStatus.value,
-    person_ids: selectedPersons.filter(p => p.id > 0).map(p => p.id),
+    title:          taskTitle.value,
+    start_date:     taskStart.value,
+    end_date:       taskEnd.value,
+    status:         taskStatus.value,
+    person_ids:     selectedPersons.filter(p => p.id > 0).map(p => p.id),
   };
-  const res = await fetch('api.php?action=task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res  = await fetch('api.php?action=task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('taskModal');
@@ -192,7 +214,7 @@ function renderPersonDropdown() {
   const dropdown = document.getElementById('personDropdown');
   dropdown.innerHTML = personOptions
     .filter(p => !selectedPersons.some(s => s.id === p.id))
-    .map(p => `<div class="dropdown-item" data-id="${p.id}">${escapeHtml(p.full_name)} <small>${escapeHtml(p.email || '')}</small></div>`)
+    .map(p => `<div class="dropdown-item" data-id="${p.id}">${escapeHtml(p.full_name)}<small>${escapeHtml(p.email || '')}</small></div>`)
     .join('');
   dropdown.querySelectorAll('.dropdown-item').forEach(opt => opt.onclick = () => {
     const person = personOptions.find(p => p.id === Number(opt.dataset.id));
@@ -204,7 +226,9 @@ function renderPersonDropdown() {
 
 function renderSelectedPersons() {
   const container = document.getElementById('selectedPersons');
-  container.innerHTML = selectedPersons.map(p => `<span class="person-tag">${escapeHtml(p.full_name)} <button data-id="${p.id}">×</button></span>`).join('');
+  container.innerHTML = selectedPersons
+    .map(p => `<span class="person-tag">${escapeHtml(p.full_name)}<button data-id="${p.id}">×</button></span>`)
+    .join('');
   container.querySelectorAll('button').forEach(btn => btn.onclick = () => {
     selectedPersons = selectedPersons.filter(p => p.id !== Number(btn.dataset.id));
     renderSelectedPersons();
@@ -213,31 +237,35 @@ function renderSelectedPersons() {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-function colTemplate(dayCount) { return `340px 180px 110px repeat(${dayCount}, 36px)`; }
+function colTemplate(n) { return `220px 110px 90px repeat(${n}, minmax(0, 1fr))`; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
-function startOfWeek(date) { const d = new Date(date); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return d; }
+function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
 function toISO(date) { return typeof date === 'string' ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0, 10); }
-function formatPeriod(start, end) { return start === end ? dateFormatter.format(new Date(start)) : `${dateFormatter.format(new Date(start))}—${dateFormatter.format(new Date(end))}`; }
-function escapeHtml(s='') { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function formatPeriod(s, e) { return s === e ? dateFormatter.format(new Date(s)) : `${dateFormatter.format(new Date(s))} — ${dateFormatter.format(new Date(e))}`; }
+function escapeHtml(s = '') { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function findTask(id, meetings) {
-  for (const m of meetings) {
-    const f = walk(m.tasks || []);
-    if (f) return f;
+  function walk(tasks) {
+    for (const t of tasks) {
+      if (t.id === id) return t;
+      const c = walk(t.children || []);
+      if (c) return c;
+    }
+    return null;
   }
+  for (const m of meetings) { const f = walk(m.tasks || []); if (f) return f; }
   return null;
-  function walk(tasks) { for (const t of tasks) { if (t.id === id) return t; const c = walk(t.children || []); if (c) return c; } return null; }
 }
 
-const meetingId = document.getElementById('meetingId');
-const meetingName = document.getElementById('meetingName');
-const meetingDate = document.getElementById('meetingDate');
+const meetingId    = document.getElementById('meetingId');
+const meetingName  = document.getElementById('meetingName');
+const meetingDate  = document.getElementById('meetingDate');
 const meetingTopic = document.getElementById('meetingTopic');
-const taskIdInput = document.getElementById('taskId');
+const taskIdInput  = document.getElementById('taskId');
 const taskMeetingId = document.getElementById('taskMeetingId');
-const taskParentId = document.getElementById('taskParentId');
-const taskTitle = document.getElementById('taskTitle');
-const taskStart = document.getElementById('taskStart');
-const taskEnd = document.getElementById('taskEnd');
-const taskStatus = document.getElementById('taskStatus');
+const taskParentId  = document.getElementById('taskParentId');
+const taskTitle    = document.getElementById('taskTitle');
+const taskStart    = document.getElementById('taskStart');
+const taskEnd      = document.getElementById('taskEnd');
+const taskStatus   = document.getElementById('taskStatus');
 
 init();

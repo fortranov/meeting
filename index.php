@@ -17,10 +17,10 @@
     <div class="board-controls">
       <h1>План заседаний и задач</h1>
       <div class="board-nav">
-        <button id="addMeetingBtn" class="success">+ Заседание</button>
-        <button id="prevWeek">← Неделя назад</button>
-        <div><h2 id="calendarLabel"></h2><p>35 дней</p></div>
-        <button id="nextWeek">Неделя вперёд →</button>
+        <button id="addMeetingBtn">+ Заседание</button>
+        <button id="prevWeek">← Назад</button>
+        <div class="calendar-info"><h2 id="calendarLabel"></h2><p>30 дней</p></div>
+        <button id="nextWeek">Вперёд →</button>
       </div>
     </div>
     <div class="table-wrap"><div id="timelineTable" class="timeline-table"></div></div>
