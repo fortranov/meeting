@@ -23,6 +23,44 @@ try {
             requirePost();
             taskSaveAction();
             break;
+        case 'directions':
+            directionsAction();
+            break;
+        case 'direction_save':
+            requirePost();
+            directionSaveAction();
+            break;
+        case 'direction_delete':
+            requirePost();
+            directionDeleteAction();
+            break;
+        case 'statuses':
+            statusesAction();
+            break;
+        case 'status_save':
+            requirePost();
+            statusSaveAction();
+            break;
+        case 'status_delete':
+            requirePost();
+            statusDeleteAction();
+            break;
+        case 'status_reorder':
+            requirePost();
+            statusReorderAction();
+            break;
+        case 'person_save':
+            requirePost();
+            personSaveAction();
+            break;
+        case 'person_delete':
+            requirePost();
+            personDeleteAction();
+            break;
+        case 'person_reorder':
+            requirePost();
+            personReorderAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -96,12 +134,11 @@ function personsAction(): void
     $q = trim((string)($_GET['q'] ?? ''));
 
     if ($q === '') {
-        $stmt = $pdo->query('SELECT id, full_name, email FROM person ORDER BY full_name LIMIT 30');
+        $stmt = $pdo->query('SELECT id, first_name, last_name, full_name, email, direction_id, sort_order FROM person ORDER BY sort_order, id LIMIT 50');
     } else {
-        $stmt = $pdo->prepare('SELECT id, full_name, email FROM person WHERE full_name LIKE :q OR email LIKE :q ORDER BY full_name LIMIT 30');
+        $stmt = $pdo->prepare('SELECT id, first_name, last_name, full_name, email, direction_id, sort_order FROM person WHERE full_name LIKE :q OR email LIKE :q ORDER BY sort_order, id LIMIT 50');
         $stmt->execute([':q' => '%' . $q . '%']);
     }
-
     jsonResponse(['persons' => $stmt->fetchAll()]);
 }
 
@@ -195,4 +232,121 @@ function jsonResponse(array $payload, int $status = 200): void
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function directionsAction(): void
+{
+    $rows = db()->query('SELECT id, name, sort_order FROM direction ORDER BY sort_order, id')->fetchAll();
+    jsonResponse(['directions' => $rows]);
+}
+
+function directionSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $name    = trim((string)($payload['name'] ?? ''));
+    if ($name === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+
+    if ($id) {
+        $pdo->prepare('UPDATE direction SET name=:name WHERE id=:id')->execute([':name' => $name, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM direction')->fetch()['m']);
+        $pdo->prepare('INSERT INTO direction (name, sort_order) VALUES (:name, :sort)')->execute([':name' => $name, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function directionDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM direction WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function statusesAction(): void
+{
+    $rows = db()->query('SELECT id, name, sort_order FROM task_status ORDER BY sort_order, id')->fetchAll();
+    jsonResponse(['statuses' => $rows]);
+}
+
+function statusSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $name    = trim((string)($payload['name'] ?? ''));
+    if ($name === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+
+    if ($id) {
+        $pdo->prepare('UPDATE task_status SET name=:name WHERE id=:id')->execute([':name' => $name, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM task_status')->fetch()['m']);
+        $pdo->prepare('INSERT INTO task_status (name, sort_order) VALUES (:name, :sort)')->execute([':name' => $name, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function statusDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM task_status WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function statusReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE task_status SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function personSaveAction(): void
+{
+    $pdo       = db();
+    $payload   = getJsonPayload();
+    $id        = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $firstName = trim((string)($payload['first_name'] ?? ''));
+    $lastName  = trim((string)($payload['last_name']  ?? ''));
+    $email     = trim((string)($payload['email']      ?? ''));
+    $dirId     = isset($payload['direction_id']) && $payload['direction_id'] !== '' ? (int)$payload['direction_id'] : null;
+    $fullName  = trim("$firstName $lastName");
+
+    if ($fullName === '') jsonResponse(['error' => 'Имя не может быть пустым'], 422);
+
+    if ($id) {
+        $pdo->prepare('UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, email=:email, direction_id=:dir WHERE id=:id')
+            ->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName, ':email' => $email ?: null, ':dir' => $dirId, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
+        $pdo->prepare('INSERT INTO person (first_name, last_name, full_name, email, direction_id, sort_order) VALUES (:fn, :ln, :full, :email, :dir, :sort)')
+            ->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName, ':email' => $email ?: null, ':dir' => $dirId, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function personDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM person WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function personReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE person SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
 }

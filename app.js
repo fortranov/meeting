@@ -7,6 +7,7 @@ let visibleStart     = startOfWeek(new Date(new Date().getFullYear(), new Date()
 let selectedPersons  = [];
 let personOptions    = [];
 let timelineMeetings = [];
+let taskStatuses = [];
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -14,7 +15,7 @@ const calendarLabel  = document.getElementById('calendarLabel');
 
 async function init() {
   bindEvents();
-  await loadTimeline();
+  await Promise.all([loadStatuses(), loadTimeline()]);
 }
 
 function bindEvents() {
@@ -39,6 +40,14 @@ function bindEvents() {
     personOptions = data.persons || [];
     renderPersonDropdown();
   };
+}
+
+async function loadStatuses() {
+  const res  = await fetch('api.php?action=statuses');
+  const data = await res.json();
+  taskStatuses = data.statuses || [];
+  const sel = document.getElementById('taskStatus');
+  sel.innerHTML = taskStatuses.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
 }
 
 async function loadTimeline() {
