@@ -268,7 +268,7 @@ function directionDeleteAction(): void
 
 function statusesAction(): void
 {
-    $rows = db()->query('SELECT id, name, sort_order FROM task_status ORDER BY sort_order, id')->fetchAll();
+    $rows = db()->query('SELECT id, name, sort_order, color FROM task_status ORDER BY sort_order, id')->fetchAll();
     jsonResponse(['statuses' => $rows]);
 }
 
@@ -277,7 +277,16 @@ function statusSaveAction(): void
     $pdo     = db();
     $payload = getJsonPayload();
     $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
-    $name    = trim((string)($payload['name'] ?? ''));
+
+    // Color-only update (no name key in payload)
+    if ($id && array_key_exists('color', $payload) && !array_key_exists('name', $payload)) {
+        $color = $payload['color'] ? trim((string)$payload['color']) : null;
+        if ($color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
+        $pdo->prepare('UPDATE task_status SET color=:color WHERE id=:id')->execute([':color' => $color, ':id' => $id]);
+        jsonResponse(['ok' => true, 'id' => $id]);
+    }
+
+    $name = trim((string)($payload['name'] ?? ''));
     if ($name === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
 
     if ($id) {

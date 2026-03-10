@@ -77,7 +77,7 @@ function renderTimeline() {
   const body = rows.map(r => `
     <div class="timeline-row ${r.type}" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}">
-        <span>${escapeHtml(r.title)}</span>
+        <span title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
       </div>
       <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
@@ -143,7 +143,9 @@ function renderRangeCell(day, start, end) {
 
 function statusPill(status) {
   const map = { 'Сделано': 'done', 'Риск': 'risk', 'В работе': 'in-progress' };
-  return `<span class="status-pill status-${map[status] || 'neutral'}">${escapeHtml(status)}</span>`;
+  const st = taskStatuses.find(s => s.name === status);
+  const dot = st && st.color ? `<span class="status-dot" style="background:${st.color}"></span>` : '';
+  return `<span class="status-pill status-${map[status] || 'neutral'}">${dot}${escapeHtml(status)}</span>`;
 }
 
 function openMeetingModal(id = null) {

@@ -73,6 +73,9 @@ function migrateDatabase(PDO $pdo): void
         $pdo->exec('PRAGMA foreign_keys = ON');
     }
 
+    $stCols = array_column($pdo->query("PRAGMA table_info(task_status)")->fetchAll(), 'name');
+    if (!in_array('color', $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN color TEXT");
+
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {
         $pdo->exec("INSERT INTO task_status (name, sort_order) VALUES ('В работе', 1), ('Риск', 2), ('Сделано', 3)");
     }

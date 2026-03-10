@@ -162,7 +162,7 @@ body {
 .timeline-row.header { background: #f4f7fd; }
 
 .timeline-cell {
-  min-height: 44px;
+  min-height: 34px;
   border-right: 1px solid var(--border);
   padding: 6px 8px;
   display: flex;
@@ -227,7 +227,8 @@ body {
 
 /* ─── Status pill ─── */
 .status-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 0.72rem;
@@ -238,6 +239,15 @@ body {
 .status-done { color: var(--success); background: #ebfff8; }
 .status-risk { color: var(--danger); background: #fff0f0; }
 .status-neutral { color: #4b5d85; background: #eef2ff; }
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-right: 5px;
+}
 
 /* ─── Month row ─── */
 .month-row .timeline-cell { min-height: 22px; padding: 0 6px; }
@@ -595,6 +605,57 @@ body {
 }
 .btn-icon-del:hover { background: #fff0f0; color: var(--danger); border-color: var(--danger); }
 .btn-icon-del svg { width: 11px; height: 11px; }
+
+/* ─── Color swatch & picker ─── */
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid rgba(0,0,0,0.15);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: transform 0.1s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+
+.color-picker-popup {
+  position: absolute;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 24px);
+  gap: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+}
+.palette-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.palette-swatch:hover { transform: scale(1.2); border-color: rgba(0,0,0,0.25); }
+.palette-none {
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  position: relative;
+}
+.palette-none::after {
+  content: '×';
+  font-size: 14px;
+  color: #94a3b8;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Person item */
 .person-item .person-info { flex: 1; min-width: 0; }

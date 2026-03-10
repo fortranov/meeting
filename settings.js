@@ -2,6 +2,15 @@ let directions = [];
 let statuses   = [];
 let persons    = [];
 
+const PALETTE = [
+  '#ef4444','#f97316','#eab308','#84cc16',
+  '#22c55e','#10b981','#14b8a6','#06b6d4',
+  '#0ea5e9','#3b82f6','#6366f1','#8b5cf6',
+  '#a855f7','#ec4899','#f43f5e','#64748b',
+  '#fca5a5','#fde68a','#bbf7d0','#bfdbfe',
+  '#ddd6fe','#fbcfe8','#fed7aa','#d1fae5',
+];
+
 async function init() {
   bindEvents();
   await Promise.all([loadDirections(), loadStatuses(), loadPersons()]);
@@ -103,6 +112,7 @@ function renderStatuses() {
   list.innerHTML = statuses.map((s, i) => `
     <div class="setting-item" data-id="${s.id}" draggable="true">
       <span class="drag-handle" title="Перетащить">⠿</span>
+      <button class="color-swatch" data-id="${s.id}" style="background:${s.color || '#e2e8f0'}" title="Выбрать цвет"></button>
       <span class="item-name" contenteditable="true" data-id="${s.id}" data-type="status">${escHtml(s.name)}</span>
       <div class="item-actions">
         <button class="btn-icon-sm ${i === 0 ? 'disabled' : ''}" data-dir="up" data-id="${s.id}" title="Вверх">↑</button>
@@ -113,6 +123,9 @@ function renderStatuses() {
       </div>
     </div>`).join('');
 
+  list.querySelectorAll('.color-swatch[data-id]').forEach(btn =>
+    btn.onclick = e => openColorPicker(e, Number(btn.dataset.id))
+  );
   list.querySelectorAll('.item-name[data-type="status"]').forEach(el => {
     el.onblur = () => renameStatus(Number(el.dataset.id), el.textContent.trim());
     el.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
@@ -256,6 +269,36 @@ async function deletePerson(id) {
   if (!confirm('Удалить сотрудника?')) return;
   await api('person_delete', { id });
   await loadPersons();
+}
+
+function openColorPicker(e, statusId) {
+  e.stopPropagation();
+  document.querySelectorAll('.color-picker-popup').forEach(p => p.remove());
+
+  const btn   = e.currentTarget;
+  const popup = document.createElement('div');
+  popup.className = 'color-picker-popup';
+  popup.innerHTML =
+    PALETTE.map(c => `<button class="palette-swatch" style="background:${c}" data-color="${c}" title="${c}"></button>`).join('') +
+    `<button class="palette-swatch palette-none" data-color="" title="Без цвета"></button>`;
+
+  document.body.appendChild(popup);
+  const rect = btn.getBoundingClientRect();
+  popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  popup.style.left = (rect.left  + window.scrollX) + 'px';
+
+  popup.querySelectorAll('.palette-swatch').forEach(sw => {
+    sw.onclick = async e2 => {
+      e2.stopPropagation();
+      const color = sw.dataset.color || null;
+      await api('status_save', { id: statusId, color });
+      statuses = statuses.map(s => s.id === statusId ? { ...s, color } : s);
+      btn.style.background = color || '#e2e8f0';
+      popup.remove();
+    };
+  });
+
+  setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
 }
 
 // ─── Drag & Drop ─────────────────────────────────────────
