@@ -8,8 +8,9 @@ let selectedPersons  = [];
 let personOptions    = [];
 let timelineMeetings = [];
 
-const timelineTable = document.getElementById('timelineTable');
-const calendarLabel = document.getElementById('calendarLabel');
+const timelineHeader = document.getElementById('timelineHeader');
+const timelineTable  = document.getElementById('timelineTable');
+const calendarLabel  = document.getElementById('calendarLabel');
 
 async function init() {
   bindEvents();
@@ -25,6 +26,10 @@ function bindEvents() {
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => closeModal(btn.dataset.close)
   );
+
+  const bodyWrap   = document.querySelector('.table-body-wrap');
+  const headerWrap = document.querySelector('.table-header-wrap');
+  bodyWrap.addEventListener('scroll', () => { headerWrap.scrollLeft = bodyWrap.scrollLeft; });
 
   const search = document.getElementById('personSearch');
   search.oninput = async () => {
@@ -77,7 +82,8 @@ function renderTimeline() {
       ${days.map(d => renderRangeCell(d, r.start, r.end)).join('')}
     </div>`).join('');
 
-  timelineTable.innerHTML = header + body;
+  timelineHeader.innerHTML = header;
+  timelineTable.innerHTML  = body;
 
   timelineTable.querySelectorAll('[data-action="edit-meeting"]').forEach(btn =>
     btn.onclick = () => openMeetingModal(Number(btn.dataset.id))

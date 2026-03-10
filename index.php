@@ -23,7 +23,14 @@
         <button id="nextWeek">Вперёд →</button>
       </div>
     </div>
-    <div class="table-wrap"><div id="timelineTable" class="timeline-table"></div></div>
+    <div class="table-outer">
+      <div class="table-header-wrap">
+        <div id="timelineHeader" class="timeline-table"></div>
+      </div>
+      <div class="table-body-wrap">
+        <div id="timelineTable" class="timeline-table"></div>
+      </div>
+    </div>
   </section>
 </main>
 

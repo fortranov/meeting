@@ -132,11 +132,20 @@ body {
 }
 
 /* ─── Table ─── */
-.table-wrap {
+.table-outer {
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
 }
+.table-header-wrap {
+  position: sticky;
+  top: 52px;
+  z-index: 20;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid var(--border);
+}
+.table-body-wrap { overflow-x: auto; }
+
 .timeline-table { display: grid; width: 100%; }
 
 .timeline-row {
@@ -150,12 +159,7 @@ body {
 .timeline-row:not(.header):hover { background: #f6f9ff; }
 .timeline-row.meeting { background: #f9fbff; }
 .timeline-row.meeting:hover { background: #f0f5ff; }
-.timeline-row.header {
-  position: sticky;
-  top: 52px;
-  z-index: 20;
-  background: #f4f7fd;
-}
+.timeline-row.header { background: #f4f7fd; }
 
 .timeline-cell {
   min-height: 44px;
