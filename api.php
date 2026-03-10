@@ -78,7 +78,8 @@ function timelineAction(): void
 
     $taskRows = $pdo->query(
         'SELECT t.id, t.meeting_id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
-                GROUP_CONCAT(p.full_name, ", ") AS responsible
+                GROUP_CONCAT(p.full_name, ", ") AS responsible,
+                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids
          FROM task t
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
@@ -89,6 +90,7 @@ function timelineAction(): void
     $tasksByMeeting = [];
     foreach ($taskRows as $task) {
         $task['responsible'] = $task['responsible'] ?? '';
+        $task['person_ids']  = $task['person_ids']  ?? '';
         $tasksByMeeting[(int)$task['meeting_id']][] = $task;
     }
 

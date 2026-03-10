@@ -13,7 +13,13 @@ const timelineTable  = document.getElementById('timelineTable');
 
 async function init() {
   bindEvents();
-  await Promise.all([loadStatuses(), loadTimeline()]);
+  await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons()]);
+}
+
+async function loadAllPersons() {
+  const res  = await fetch('api.php?action=persons');
+  const data = await res.json();
+  personOptions = data.persons || [];
 }
 
 function bindEvents() {
@@ -202,8 +208,11 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
       taskStart.value  = task.start_date;
       taskEnd.value    = task.end_date;
       taskStatus.value = task.status;
-      if (task.responsible) {
-        selectedPersons = task.responsible.split(',').map((name, idx) => ({ id: -idx - 1, full_name: name.trim() }));
+      if (task.person_ids) {
+        const ids = task.person_ids.split(',').map(Number).filter(Boolean);
+        selectedPersons = ids.map(pid => {
+          return personOptions.find(p => Number(p.id) === pid) || { id: pid, full_name: '?' };
+        });
         renderSelectedPersons();
       }
     }
@@ -292,7 +301,7 @@ function escapeHtml(s = '') { return String(s).replace(/[&<>"']/g, c => ({ '&': 
 function findTask(id, meetings) {
   function walk(tasks) {
     for (const t of tasks) {
-      if (t.id === id) return t;
+      if (Number(t.id) === Number(id)) return t;
       const c = walk(t.children || []);
       if (c) return c;
     }
