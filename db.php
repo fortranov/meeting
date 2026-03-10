@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const DB_FILE = __DIR__ . '/meeting.sqlite';
+define('DB_FILE', getenv('DB_PATH') ?: __DIR__ . '/meeting.sqlite');
 
 function db(): PDO
 {

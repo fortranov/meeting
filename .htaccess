@@ -1,0 +1,9 @@
+# Deny direct access to SQLite database files
+<Files "*.sqlite">
+    Require all denied
+</Files>
+
+# Deny access to PHP include files
+<Files "db.php">
+    Require all denied
+</Files>
