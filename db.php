@@ -74,10 +74,19 @@ function migrateDatabase(PDO $pdo): void
     }
 
     $stCols = array_column($pdo->query("PRAGMA table_info(task_status)")->fetchAll(), 'name');
-    if (!in_array('color', $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN color TEXT");
+    if (!in_array('color',     $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN color TEXT");
+    if (!in_array('is_system', $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0");
 
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {
-        $pdo->exec("INSERT INTO task_status (name, sort_order) VALUES ('В работе', 1), ('Риск', 2), ('Сделано', 3)");
+        $pdo->exec("INSERT INTO task_status (name, sort_order, color) VALUES ('В работе', 1, '#3b82f6'), ('Риск', 2, '#f97316'), ('Выполнено', 3, '#22c55e')");
+        $pdo->exec("UPDATE task_status SET is_system=1 WHERE name='Выполнено'");
+    } else {
+        // Ensure the system status exists
+        $has = (int)$pdo->query("SELECT COUNT(*) AS c FROM task_status WHERE is_system=1")->fetch()['c'];
+        if (!$has) {
+            $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM task_status')->fetch()['m']);
+            $pdo->exec("INSERT INTO task_status (name, sort_order, color, is_system) VALUES ('Выполнено', " . ($max + 1) . ", '#22c55e', 1)");
+        }
     }
 }
 
@@ -87,7 +96,7 @@ function initializeDatabase(PDO $pdo): void
     if ($schema === false) throw new RuntimeException('Не найден schema.sql');
     $pdo->exec($schema);
 
-    $pdo->exec("INSERT INTO task_status (name, sort_order) VALUES ('В работе', 1), ('Риск', 2), ('Сделано', 3)");
+    $pdo->exec("INSERT INTO task_status (name, sort_order, color, is_system) VALUES ('В работе', 1, '#3b82f6', 0), ('Риск', 2, '#f97316', 0), ('Выполнено', 3, '#22c55e', 1)");
 
     $stmt = $pdo->prepare('INSERT INTO person (first_name, last_name, full_name, email, sort_order) VALUES (:fn, :ln, :full, :email, :sort)');
     foreach ([

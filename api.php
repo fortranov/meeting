@@ -268,7 +268,7 @@ function directionDeleteAction(): void
 
 function statusesAction(): void
 {
-    $rows = db()->query('SELECT id, name, sort_order, color FROM task_status ORDER BY sort_order, id')->fetchAll();
+    $rows = db()->query('SELECT id, name, sort_order, color, is_system FROM task_status ORDER BY sort_order, id')->fetchAll();
     jsonResponse(['statuses' => $rows]);
 }
 
@@ -305,9 +305,13 @@ function statusSaveAction(): void
 
 function statusDeleteAction(): void
 {
-    $id = (int)(getJsonPayload()['id'] ?? 0);
+    $pdo = db();
+    $id  = (int)(getJsonPayload()['id'] ?? 0);
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
-    db()->prepare('DELETE FROM task_status WHERE id=:id')->execute([':id' => $id]);
+    $row = $pdo->prepare('SELECT is_system FROM task_status WHERE id=:id')->execute([':id' => $id]);
+    $sys = (int)($pdo->query("SELECT is_system FROM task_status WHERE id=$id")->fetch()['is_system'] ?? 0);
+    if ($sys) jsonResponse(['error' => 'Системный статус нельзя удалить'], 422);
+    $pdo->prepare('DELETE FROM task_status WHERE id=:id')->execute([':id' => $id]);
     jsonResponse(['ok' => true]);
 }
 

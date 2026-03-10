@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS direction (
 CREATE TABLE IF NOT EXISTS task_status (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT    NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  color      TEXT,
+  is_system  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS meeting (

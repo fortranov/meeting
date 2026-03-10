@@ -117,9 +117,9 @@ function renderStatuses() {
       <div class="item-actions">
         <button class="btn-icon-sm ${i === 0 ? 'disabled' : ''}" data-dir="up" data-id="${s.id}" title="Вверх">↑</button>
         <button class="btn-icon-sm ${i === statuses.length - 1 ? 'disabled' : ''}" data-dir="down" data-id="${s.id}" title="Вниз">↓</button>
-        <button class="btn-icon-del" data-id="${s.id}" data-type="status" title="Удалить">
+        ${Number(s.is_system) ? '' : `<button class="btn-icon-del" data-id="${s.id}" data-type="status" title="Удалить">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
-        </button>
+        </button>`}
       </div>
     </div>`).join('');
 

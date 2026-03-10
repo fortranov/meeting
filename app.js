@@ -82,7 +82,7 @@ function renderTimeline() {
       </div>
       <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
       <div class="timeline-cell left-col left-3">${r.status ? statusPill(r.status) : ''}</div>
-      ${days.map(d => renderRangeCell(d, r.start, r.end)).join('')}
+      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status)).join('')}
     </div>`).join('');
 
   timelineHeader.innerHTML = header;
@@ -133,10 +133,15 @@ function renderDayHeader(day) {
   </div>`;
 }
 
-function renderRangeCell(day, start, end) {
+function isDoneStatus(status) {
+  const st = taskStatuses.find(s => s.name === status);
+  return st && Number(st.is_system) === 1;
+}
+
+function renderRangeCell(day, start, end, status = '') {
   const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
   const d = toISO(day);
-  if (d < start || d > end) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="day-fill"></div></div>`;
 }
