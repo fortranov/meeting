@@ -73,6 +73,15 @@ function migrateDatabase(PDO $pdo): void
         $pdo->exec('PRAGMA foreign_keys = ON');
     }
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS meeting_template_task (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        title         TEXT    NOT NULL,
+        days_before   INTEGER NOT NULL DEFAULT 0,
+        duration_days INTEGER NOT NULL DEFAULT 1,
+        is_subtask    INTEGER NOT NULL DEFAULT 0,
+        sort_order    INTEGER NOT NULL DEFAULT 0
+    )");
+
     $stCols = array_column($pdo->query("PRAGMA table_info(task_status)")->fetchAll(), 'name');
     if (!in_array('color',     $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN color TEXT");
     if (!in_array('is_system', $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0");

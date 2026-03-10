@@ -1,6 +1,7 @@
-let directions = [];
-let statuses   = [];
-let persons    = [];
+let directions     = [];
+let statuses       = [];
+let persons        = [];
+let templateTasks  = [];
 
 const PALETTE = [
   '#ef4444','#f97316','#eab308','#84cc16',
@@ -13,7 +14,7 @@ const PALETTE = [
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks()]);
 }
 
 function bindEvents() {
@@ -28,6 +29,11 @@ function bindEvents() {
   document.getElementById('cancelStatusBtn').onclick = () => hideRow('addStatusRow');
   document.getElementById('saveStatusBtn').onclick   = saveStatus;
   document.getElementById('newStatusName').onkeydown = e => { if (e.key === 'Enter') saveStatus(); };
+
+  // Template tasks
+  document.getElementById('showAddTemplateTask').onclick   = () => openTemplateTaskModal();
+  document.getElementById('saveTemplateTaskBtn').onclick   = saveTemplateTask;
+  document.getElementById('deleteTemplateTaskBtn').onclick = () => deleteTemplateTask(Number(document.getElementById('templateTaskId').value));
 
   // Person modal
   document.getElementById('showAddPerson').onclick = () => openPersonModal();
@@ -270,6 +276,95 @@ async function deletePerson(id) {
   if (!confirm('Удалить сотрудника?')) return;
   await api('person_delete', { id });
   await loadPersons();
+}
+
+// ─── Template Tasks ───────────────────────────────────────
+async function loadTemplateTasks() {
+  const data = await api('template_tasks');
+  templateTasks = data.tasks || [];
+  renderTemplateTasks();
+}
+
+function renderTemplateTasks() {
+  const list = document.getElementById('templateTasksList');
+  if (!templateTasks.length) {
+    list.innerHTML = '<div class="empty-hint">Шаблон пуст — добавьте задачи</div>';
+    return;
+  }
+  list.innerHTML = templateTasks.map(t => `
+    <div class="setting-item" data-id="${t.id}" draggable="true">
+      <span class="drag-handle" title="Перетащить">⠿</span>
+      ${Number(t.is_subtask) ? '<span class="subtask-badge" title="Подзадача">↳</span>' : '<span class="subtask-spacer"></span>'}
+      <div class="tmpl-info">
+        <span class="tmpl-title">${escHtml(t.title)}</span>
+        <span class="tmpl-meta">за ${t.days_before} дн. до · ${t.duration_days} дн.</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn-icon-sm btn-edit" data-id="${t.id}" title="Редактировать">✎</button>
+        <button class="btn-icon-del" data-id="${t.id}" title="Удалить">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.btn-edit').forEach(btn =>
+    btn.onclick = () => openTemplateTaskModal(Number(btn.dataset.id))
+  );
+  list.querySelectorAll('.btn-icon-del').forEach(btn =>
+    btn.onclick = () => deleteTemplateTask(Number(btn.dataset.id))
+  );
+  setupDrag(list, templateTasks, 'template_task_reorder', () => loadTemplateTasks());
+}
+
+function openTemplateTaskModal(id = null) {
+  document.getElementById('templateTaskModal').classList.remove('hidden');
+  document.getElementById('templateTaskModalTitle').textContent = id ? 'Редактировать задачу шаблона' : 'Добавить задачу в шаблон';
+  document.getElementById('templateTaskId').value   = id || '';
+  document.getElementById('tmplTitle').value        = '';
+  document.getElementById('tmplDaysBefore').value   = 0;
+  document.getElementById('tmplDuration').value     = 1;
+  document.getElementById('deleteTemplateTaskBtn').classList.toggle('hidden', !id);
+
+  const subtaskCb = document.getElementById('tmplIsSubtask');
+  subtaskCb.checked  = false;
+
+  if (id) {
+    const t = templateTasks.find(x => Number(x.id) === id);
+    if (t) {
+      document.getElementById('tmplTitle').value      = t.title;
+      document.getElementById('tmplDaysBefore').value = t.days_before;
+      document.getElementById('tmplDuration').value   = t.duration_days;
+      subtaskCb.checked  = Boolean(Number(t.is_subtask));
+      // Disable subtask if this is the first task in the list
+      subtaskCb.disabled = Number(templateTasks[0]?.id) === id;
+    }
+  } else {
+    // Disable subtask if template is empty (would be first)
+    subtaskCb.disabled = templateTasks.length === 0;
+  }
+}
+
+async function saveTemplateTask() {
+  const id    = document.getElementById('templateTaskId').value;
+  const title = document.getElementById('tmplTitle').value.trim();
+  if (!title) return alert('Введите название задачи');
+  const payload = {
+    id:            id || undefined,
+    title,
+    days_before:   Math.max(0, Number(document.getElementById('tmplDaysBefore').value) || 0),
+    duration_days: Math.max(1, Number(document.getElementById('tmplDuration').value)   || 1),
+    is_subtask:    document.getElementById('tmplIsSubtask').checked ? 1 : 0,
+  };
+  await api('template_task_save', payload);
+  document.getElementById('templateTaskModal').classList.add('hidden');
+  await loadTemplateTasks();
+}
+
+async function deleteTemplateTask(id) {
+  if (!id || !confirm('Удалить задачу из шаблона?')) return;
+  await api('template_task_delete', { id });
+  document.getElementById('templateTaskModal').classList.add('hidden');
+  await loadTemplateTasks();
 }
 
 function openColorPicker(e, statusId) {

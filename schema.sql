@@ -56,6 +56,15 @@ CREATE TABLE IF NOT EXISTS task_person (
   FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS meeting_template_task (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  title         TEXT    NOT NULL,
+  days_before   INTEGER NOT NULL DEFAULT 0,
+  duration_days INTEGER NOT NULL DEFAULT 1,
+  is_subtask    INTEGER NOT NULL DEFAULT 0,
+  sort_order    INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_meeting_date ON meeting(meeting_date);
 CREATE INDEX IF NOT EXISTS idx_task_meeting ON task(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_task_parent  ON task(parent_task_id);

@@ -40,6 +40,10 @@
     <label>Название заседания<input id="meetingName" /></label>
     <label>Дата заседания<input id="meetingDate" type="date" /></label>
     <label>Тема заседания<textarea id="meetingTopic"></textarea></label>
+    <label class="checkbox-label" id="useTemplateRow">
+      <input type="checkbox" id="useTemplate" />
+      На основе шаблона
+    </label>
     <div class="modal-actions">
       <button id="deleteMeetingBtn" class="btn-danger hidden">Удалить заседание</button>
       <div style="flex:1"></div>

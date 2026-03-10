@@ -175,15 +175,19 @@ function statusPill(status) {
 function openMeetingModal(id = null) {
   document.getElementById('meetingModal').classList.remove('hidden');
   document.getElementById('meetingModalTitle').textContent = id ? 'Редактировать заседание' : 'Создать заседание';
-  const delBtn = document.getElementById('deleteMeetingBtn');
+  const delBtn        = document.getElementById('deleteMeetingBtn');
+  const useTemplateRow = document.getElementById('useTemplateRow');
   if (!id) {
-    meetingId.value = '';
-    meetingName.value = '';
-    meetingDate.value = toISO(new Date());
+    meetingId.value    = '';
+    meetingName.value  = '';
+    meetingDate.value  = toISO(new Date());
     meetingTopic.value = '';
+    document.getElementById('useTemplate').checked = false;
     delBtn.classList.add('hidden');
+    useTemplateRow.classList.remove('hidden');
     return;
   }
+  useTemplateRow.classList.add('hidden');
   const m = timelineMeetings.find(x => Number(x.id) === id);
   if (!m) return;
   meetingId.value    = m.id;
@@ -227,7 +231,8 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
 }
 
 async function saveMeeting() {
-  const payload = { id: meetingId.value, title: meetingName.value, meeting_date: meetingDate.value, topic: meetingTopic.value };
+  const useTemplate = !meetingId.value && document.getElementById('useTemplate').checked;
+  const payload = { id: meetingId.value, title: meetingName.value, meeting_date: meetingDate.value, topic: meetingTopic.value, use_template: useTemplate ? 1 : 0 };
   const res  = await fetch('api.php?action=meeting_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);

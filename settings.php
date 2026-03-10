@@ -52,6 +52,15 @@
       <div id="personsList" class="settings-list persons-list"></div>
     </section>
 
+    <section class="settings-card settings-card-wide">
+      <div class="settings-card-header">
+        <h2>Шаблон заседания</h2>
+        <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
+      </div>
+      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового заседания с опцией «На основе шаблона».</p>
+      <div id="templateTasksList" class="settings-list"></div>
+    </section>
+
   </div>
 </main>
 
@@ -73,6 +82,29 @@
     <div class="modal-actions">
       <button data-close="personModal">Отмена</button>
       <button id="savePersonBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template task modal -->
+<div id="templateTaskModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="templateTaskModalTitle">Добавить задачу в шаблон</h3>
+    <input type="hidden" id="templateTaskId" />
+    <label>Название задачи<input id="tmplTitle" /></label>
+    <div class="row2">
+      <label>Дней до заседания<input id="tmplDaysBefore" type="number" min="0" value="0" /></label>
+      <label>Длительность (дней)<input id="tmplDuration" type="number" min="1" value="1" /></label>
+    </div>
+    <label class="checkbox-label">
+      <input type="checkbox" id="tmplIsSubtask" />
+      Подзадача (дочерняя для предыдущей задачи в списке)
+    </label>
+    <div class="modal-actions">
+      <button id="deleteTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
+      <div style="flex:1"></div>
+      <button data-close="templateTaskModal">Отмена</button>
+      <button id="saveTemplateTaskBtn">Сохранить</button>
     </div>
   </div>
 </div>

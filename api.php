@@ -61,6 +61,21 @@ try {
             requirePost();
             personReorderAction();
             break;
+        case 'template_tasks':
+            templateTasksAction();
+            break;
+        case 'template_task_save':
+            requirePost();
+            templateTaskSaveAction();
+            break;
+        case 'template_task_delete':
+            requirePost();
+            templateTaskDeleteAction();
+            break;
+        case 'template_task_reorder':
+            requirePost();
+            templateTaskReorderAction();
+            break;
         case 'meeting_delete':
             requirePost();
             meetingDeleteAction();
@@ -173,6 +188,9 @@ function meetingSaveAction(): void
         $stmt = $pdo->prepare('INSERT INTO meeting (title, meeting_date, topic) VALUES (:title, :meeting_date, :topic)');
         $stmt->execute([':title' => $title, ':meeting_date' => $date, ':topic' => $topic]);
         $id = (int)$pdo->lastInsertId();
+        if (!empty($payload['use_template'])) {
+            createTasksFromTemplate($pdo, $id, $date);
+        }
     }
 
     jsonResponse(['ok' => true, 'id' => $id]);
@@ -365,6 +383,79 @@ function personDeleteAction(): void
     $id = (int)(getJsonPayload()['id'] ?? 0);
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
     db()->prepare('DELETE FROM person WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function createTasksFromTemplate(PDO $pdo, int $meetingId, string $meetingDate): void
+{
+    $tasks = $pdo->query('SELECT * FROM meeting_template_task ORDER BY sort_order, id')->fetchAll();
+    if (!$tasks) return;
+
+    $defaultStatus = $pdo->query("SELECT name FROM task_status WHERE is_system=0 ORDER BY sort_order, id LIMIT 1")->fetch()['name'] ?? 'В работе';
+    $stmt = $pdo->prepare('INSERT INTO task (meeting_id, parent_task_id, title, start_date, end_date, status) VALUES (:mid, :pid, :title, :start, :end, :status)');
+    $meetingDt  = new DateTime($meetingDate);
+    $prevTaskId = null;
+
+    foreach ($tasks as $tmpl) {
+        $start    = (clone $meetingDt)->modify('-' . (int)$tmpl['days_before'] . ' days');
+        $end      = (clone $start)->modify('+' . max(0, (int)$tmpl['duration_days'] - 1) . ' days');
+        $parentId = ((int)$tmpl['is_subtask'] && $prevTaskId !== null) ? $prevTaskId : null;
+        $stmt->execute([
+            ':mid'    => $meetingId,
+            ':pid'    => $parentId,
+            ':title'  => $tmpl['title'],
+            ':start'  => $start->format('Y-m-d'),
+            ':end'    => $end->format('Y-m-d'),
+            ':status' => $defaultStatus,
+        ]);
+        $prevTaskId = (int)$pdo->lastInsertId();
+    }
+}
+
+function templateTasksAction(): void
+{
+    $rows = db()->query('SELECT id, title, days_before, duration_days, is_subtask, sort_order FROM meeting_template_task ORDER BY sort_order, id')->fetchAll();
+    jsonResponse(['tasks' => $rows]);
+}
+
+function templateTaskSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $title   = trim((string)($payload['title'] ?? ''));
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+    $daysBefore   = max(0, (int)($payload['days_before']   ?? 0));
+    $durationDays = max(1, (int)($payload['duration_days'] ?? 1));
+    $isSubtask    = (int)(!empty($payload['is_subtask']));
+
+    if ($id) {
+        $pdo->prepare('UPDATE meeting_template_task SET title=:t, days_before=:db, duration_days=:dd, is_subtask=:sub WHERE id=:id')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM meeting_template_task')->fetch()['m']);
+        $pdo->prepare('INSERT INTO meeting_template_task (title, days_before, duration_days, is_subtask, sort_order) VALUES (:t,:db,:dd,:sub,:sort)')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function templateTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM meeting_template_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function templateTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE meeting_template_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
     jsonResponse(['ok' => true]);
 }
 
