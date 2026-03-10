@@ -112,8 +112,8 @@ function renderRangeCell(day, start, end) {
   const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
   const d = toISO(day);
   if (d < start || d > end) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
-  const cls = start === end ? 'single' : d === start ? 'start' : d === end ? 'end' : 'mid';
-  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="fill"></div></div>`;
+  const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
+  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="day-fill"></div></div>`;
 }
 
 function openMeetingModal(id = null) {
@@ -192,9 +192,9 @@ function renderPersonDropdown() {
   const dropdown = document.getElementById('personDropdown');
   dropdown.innerHTML = personOptions
     .filter(p => !selectedPersons.some(s => s.id === p.id))
-    .map(p => `<div class="option" data-id="${p.id}">${escapeHtml(p.full_name)} <small>${escapeHtml(p.email || '')}</small></div>`)
+    .map(p => `<div class="dropdown-item" data-id="${p.id}">${escapeHtml(p.full_name)} <small>${escapeHtml(p.email || '')}</small></div>`)
     .join('');
-  dropdown.querySelectorAll('.option').forEach(opt => opt.onclick = () => {
+  dropdown.querySelectorAll('.dropdown-item').forEach(opt => opt.onclick = () => {
     const person = personOptions.find(p => p.id === Number(opt.dataset.id));
     if (person) selectedPersons.push(person);
     renderSelectedPersons();
@@ -204,7 +204,7 @@ function renderPersonDropdown() {
 
 function renderSelectedPersons() {
   const container = document.getElementById('selectedPersons');
-  container.innerHTML = selectedPersons.map(p => `<span class="tag">${escapeHtml(p.full_name)} <button data-id="${p.id}">×</button></span>`).join('');
+  container.innerHTML = selectedPersons.map(p => `<span class="person-tag">${escapeHtml(p.full_name)} <button data-id="${p.id}">×</button></span>`).join('');
   container.querySelectorAll('button').forEach(btn => btn.onclick = () => {
     selectedPersons = selectedPersons.filter(p => p.id !== Number(btn.dataset.id));
     renderSelectedPersons();

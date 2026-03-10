@@ -119,3 +119,128 @@ body {
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
 }
+
+/* Modals */
+.hidden { display: none !important; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  min-width: 420px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-box h3 { margin: 0; font-size: 1.1rem; }
+
+.modal-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.modal-box input,
+.modal-box textarea,
+.modal-box select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+}
+
+.modal-box input:focus,
+.modal-box textarea:focus,
+.modal-box select:focus { border-color: var(--primary); }
+
+.modal-box textarea { resize: vertical; min-height: 80px; }
+
+.modal-box .row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.modal-actions button {
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.modal-actions button#saveMeeting,
+.modal-actions button#saveTask {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Person search */
+.assignee-box { display: flex; flex-direction: column; gap: 6px; }
+
+.dropdown {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.dropdown:empty { display: none; }
+
+.dropdown-item { padding: 8px 12px; cursor: pointer; font-size: 0.88rem; }
+.dropdown-item:hover { background: var(--accent); }
+
+.selected-persons { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.person-tag {
+  background: var(--accent);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.person-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+}
