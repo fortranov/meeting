@@ -25,9 +25,11 @@ async function loadAllPersons() {
 function bindEvents() {
   document.getElementById('prevWeek').onclick  = async () => { visibleStart = addDays(visibleStart, -7); await loadTimeline(); };
   document.getElementById('nextWeek').onclick  = async () => { visibleStart = addDays(visibleStart,  7); await loadTimeline(); };
-  document.getElementById('addMeetingBtn').onclick = () => openMeetingModal();
-  document.getElementById('saveMeeting').onclick   = saveMeeting;
-  document.getElementById('saveTask').onclick      = saveTask;
+  document.getElementById('addMeetingBtn').onclick    = () => openMeetingModal();
+  document.getElementById('saveMeeting').onclick      = saveMeeting;
+  document.getElementById('saveTask').onclick         = saveTask;
+  document.getElementById('deleteMeetingBtn').onclick = deleteMeeting;
+  document.getElementById('deleteTaskBtn').onclick    = deleteTask;
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => closeModal(btn.dataset.close)
   );
@@ -173,19 +175,22 @@ function statusPill(status) {
 function openMeetingModal(id = null) {
   document.getElementById('meetingModal').classList.remove('hidden');
   document.getElementById('meetingModalTitle').textContent = id ? 'Редактировать заседание' : 'Создать заседание';
+  const delBtn = document.getElementById('deleteMeetingBtn');
   if (!id) {
     meetingId.value = '';
     meetingName.value = '';
     meetingDate.value = toISO(new Date());
     meetingTopic.value = '';
+    delBtn.classList.add('hidden');
     return;
   }
-  const m = timelineMeetings.find(x => x.id === id);
+  const m = timelineMeetings.find(x => Number(x.id) === id);
   if (!m) return;
   meetingId.value    = m.id;
   meetingName.value  = m.title;
   meetingDate.value  = m.meeting_date;
   meetingTopic.value = m.topic;
+  delBtn.classList.remove('hidden');
 }
 
 function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
@@ -199,7 +204,9 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
   taskTitle.value      = '';
   taskStart.value      = toISO(new Date());
   taskEnd.value        = toISO(new Date());
-  taskStatus.value     = 'В работе';
+  taskStatus.value     = taskStatuses[0]?.name || '';
+  const delBtn = document.getElementById('deleteTaskBtn');
+  delBtn.classList.toggle('hidden', !taskId);
 
   if (taskId) {
     const task = findTask(taskId, timelineMeetings);
@@ -240,6 +247,28 @@ async function saveTask() {
     person_ids:     selectedPersons.filter(p => p.id > 0).map(p => p.id),
   };
   const res  = await fetch('api.php?action=task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (data.error) return alert(data.error);
+  closeModal('taskModal');
+  await loadTimeline();
+}
+
+async function deleteMeeting() {
+  const id = Number(meetingId.value);
+  if (!id) return;
+  if (!confirm('Удалить заседание и все связанные с ним задачи?')) return;
+  const res  = await fetch('api.php?action=meeting_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  const data = await res.json();
+  if (data.error) return alert(data.error);
+  closeModal('meetingModal');
+  await loadTimeline();
+}
+
+async function deleteTask() {
+  const id = Number(taskIdInput.value);
+  if (!id) return;
+  if (!confirm('Удалить задачу и все её подзадачи?')) return;
+  const res  = await fetch('api.php?action=task_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('taskModal');

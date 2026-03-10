@@ -404,6 +404,13 @@ body {
 .modal-actions button#saveMeeting:hover,
 .modal-actions button#saveTask:hover { background: #1a56e8; border-color: #1a56e8; }
 
+.btn-danger {
+  background: #fff0f0;
+  color: var(--danger);
+  border-color: #fcc;
+}
+.btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
 /* ─── Person search ─── */
 .assignee-box { display: flex; flex-direction: column; gap: 6px; }
 .dropdown {

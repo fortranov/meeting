@@ -61,6 +61,14 @@ try {
             requirePost();
             personReorderAction();
             break;
+        case 'meeting_delete':
+            requirePost();
+            meetingDeleteAction();
+            break;
+        case 'task_delete':
+            requirePost();
+            taskDeleteAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -357,6 +365,22 @@ function personDeleteAction(): void
     $id = (int)(getJsonPayload()['id'] ?? 0);
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
     db()->prepare('DELETE FROM person WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function meetingDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM meeting WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function taskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM task WHERE id=:id')->execute([':id' => $id]);
     jsonResponse(['ok' => true]);
 }
 

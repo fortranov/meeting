@@ -40,7 +40,12 @@
     <label>Название заседания<input id="meetingName" /></label>
     <label>Дата заседания<input id="meetingDate" type="date" /></label>
     <label>Тема заседания<textarea id="meetingTopic"></textarea></label>
-    <div class="modal-actions"><button data-close="meetingModal">Отмена</button><button id="saveMeeting">Сохранить</button></div>
+    <div class="modal-actions">
+      <button id="deleteMeetingBtn" class="btn-danger hidden">Удалить заседание</button>
+      <div style="flex:1"></div>
+      <button data-close="meetingModal">Отмена</button>
+      <button id="saveMeeting">Сохранить</button>
+    </div>
   </div>
 </div>
 
@@ -64,7 +69,12 @@
       <div id="personDropdown" class="dropdown"></div>
       <div id="selectedPersons" class="selected-persons"></div>
     </div>
-    <div class="modal-actions"><button data-close="taskModal">Отмена</button><button id="saveTask">Сохранить</button></div>
+    <div class="modal-actions">
+      <button id="deleteTaskBtn" class="btn-danger hidden">Удалить задачу</button>
+      <div style="flex:1"></div>
+      <button data-close="taskModal">Отмена</button>
+      <button id="saveTask">Сохранить</button>
+    </div>
   </div>
 </div>
 
