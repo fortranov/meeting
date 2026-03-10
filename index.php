@@ -19,7 +19,6 @@
       <div class="board-nav">
         <button id="addMeetingBtn">+ Заседание</button>
         <button id="prevWeek">← Назад</button>
-        <div class="calendar-info"><h2 id="calendarLabel"></h2><p>30 дней</p></div>
         <button id="nextWeek">Вперёд →</button>
       </div>
     </div>

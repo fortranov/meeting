@@ -1,7 +1,6 @@
 const VISIBLE_DAYS = 30;
-const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const monthFormatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
-const dateFormatter  = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' });
+const weekdays  = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const monthsRu  = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
 let visibleStart     = startOfWeek(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 let selectedPersons  = [];
@@ -11,7 +10,6 @@ let taskStatuses = [];
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
-const calendarLabel  = document.getElementById('calendarLabel');
 
 async function init() {
   bindEvents();
@@ -59,11 +57,7 @@ async function loadTimeline() {
 }
 
 function renderTimeline() {
-  const days  = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
-  const first = monthFormatter.format(days[0]);
-  const last  = monthFormatter.format(days[days.length - 1]);
-  calendarLabel.textContent = first === last ? first : `${first} — ${last}`;
-
+  const days = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
   const rows = [];
   timelineMeetings.forEach(m => {
     rows.push({ type: 'meeting', id: m.id, meetingId: m.id, title: m.title, start: m.meeting_date, end: m.meeting_date, status: '', level: 0 });
@@ -72,7 +66,7 @@ function renderTimeline() {
 
   const tpl = colTemplate(days.length);
 
-  const header = `
+  const header = renderMonthRow(days, tpl) + `
     <div class="timeline-row header" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-1">Заседание / задача</div>
       <div class="timeline-cell left-col left-2">Сроки</div>
@@ -251,12 +245,31 @@ function renderSelectedPersons() {
   });
 }
 
+function renderMonthRow(days, tpl) {
+  const groups = [];
+  for (const d of days) {
+    const m = d.getMonth(), y = d.getFullYear();
+    if (!groups.length || groups[groups.length - 1].m !== m || groups[groups.length - 1].y !== y)
+      groups.push({ m, y, count: 1 });
+    else
+      groups[groups.length - 1].count++;
+  }
+  const cells = groups.map(g =>
+    `<div class="timeline-cell month-cell" style="grid-column:span ${g.count}">${monthsRu[g.m]} ${g.y}</div>`
+  ).join('');
+  return `<div class="timeline-row header month-row" style="grid-template-columns:${tpl}">
+    <div class="timeline-cell left-col month-left" style="grid-column:span 3"></div>
+    ${cells}
+  </div>`;
+}
+
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function colTemplate(n) { return `220px 110px 90px repeat(${n}, minmax(0, 1fr))`; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
 function toISO(date) { return typeof date === 'string' ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0, 10); }
-function formatPeriod(s, e) { return s === e ? dateFormatter.format(new Date(s)) : `${dateFormatter.format(new Date(s))} — ${dateFormatter.format(new Date(e))}`; }
+function fmtDM(iso) { const d = new Date(iso + 'T00:00:00'); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`; }
+function formatPeriod(s, e) { return s === e ? fmtDM(s) : `${fmtDM(s)} — ${fmtDM(e)}`; }
 function escapeHtml(s = '') { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function findTask(id, meetings) {
   function walk(tasks) {

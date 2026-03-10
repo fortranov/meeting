@@ -239,6 +239,19 @@ body {
 .status-risk { color: var(--danger); background: #fff0f0; }
 .status-neutral { color: #4b5d85; background: #eef2ff; }
 
+/* ─── Month row ─── */
+.month-row .timeline-cell { min-height: 22px; padding: 0 6px; }
+.month-left { background: #f4f7fd; }
+.month-cell {
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+  border-right: 2px solid var(--border);
+}
+.month-cell:last-child { border-right: none; }
+
 /* ─── Day headers ─── */
 .day-header {
   flex-direction: column;
