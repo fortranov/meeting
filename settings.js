@@ -144,7 +144,8 @@ function renderStatuses() {
 async function saveStatus() {
   const name = document.getElementById('newStatusName').value.trim();
   if (!name) return;
-  await api('status_save', { name });
+  const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  await api('status_save', { name, color });
   document.getElementById('newStatusName').value = '';
   hideRow('addStatusRow');
   await loadStatuses();

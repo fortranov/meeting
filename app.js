@@ -141,11 +141,22 @@ function renderRangeCell(day, start, end) {
   return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="day-fill"></div></div>`;
 }
 
+function pillStyleFromColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const bg   = `rgba(${r},${g},${b},0.13)`;
+  const text = `rgb(${Math.round(r * 0.5)},${Math.round(g * 0.5)},${Math.round(b * 0.5)})`;
+  return `background:${bg};color:${text}`;
+}
+
 function statusPill(status) {
   const map = { 'Сделано': 'done', 'Риск': 'risk', 'В работе': 'in-progress' };
   const st = taskStatuses.find(s => s.name === status);
-  const dot = st && st.color ? `<span class="status-dot" style="background:${st.color}"></span>` : '';
-  return `<span class="status-pill status-${map[status] || 'neutral'}">${dot}${escapeHtml(status)}</span>`;
+  if (st && st.color) {
+    return `<span class="status-pill" style="${pillStyleFromColor(st.color)}">${escapeHtml(status)}</span>`;
+  }
+  return `<span class="status-pill status-${map[status] || 'neutral'}">${escapeHtml(status)}</span>`;
 }
 
 function openMeetingModal(id = null) {

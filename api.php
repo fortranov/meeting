@@ -289,11 +289,15 @@ function statusSaveAction(): void
     $name = trim((string)($payload['name'] ?? ''));
     if ($name === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
 
+    $color = isset($payload['color']) ? trim((string)$payload['color']) : null;
+    if ($color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
+
     if ($id) {
         $pdo->prepare('UPDATE task_status SET name=:name WHERE id=:id')->execute([':name' => $name, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM task_status')->fetch()['m']);
-        $pdo->prepare('INSERT INTO task_status (name, sort_order) VALUES (:name, :sort)')->execute([':name' => $name, ':sort' => $max + 1]);
+        $pdo->prepare('INSERT INTO task_status (name, sort_order, color) VALUES (:name, :sort, :color)')
+            ->execute([':name' => $name, ':sort' => $max + 1, ':color' => $color]);
         $id = (int)$pdo->lastInsertId();
     }
     jsonResponse(['ok' => true, 'id' => $id]);
