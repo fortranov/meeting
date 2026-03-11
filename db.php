@@ -86,6 +86,9 @@ function migrateDatabase(PDO $pdo): void
     if (!in_array('color',     $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN color TEXT");
     if (!in_array('is_system', $stCols)) $pdo->exec("ALTER TABLE task_status ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0");
 
+    $dirCols = array_column($pdo->query("PRAGMA table_info(direction)")->fetchAll(), 'name');
+    if (!in_array('color', $dirCols)) $pdo->exec("ALTER TABLE direction ADD COLUMN color TEXT");
+
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {
         $pdo->exec("INSERT INTO task_status (name, sort_order, color) VALUES ('В работе', 1, '#3b82f6'), ('Риск', 2, '#f97316'), ('Выполнено', 3, '#22c55e')");
         $pdo->exec("UPDATE task_status SET is_system=1 WHERE name='Выполнено'");
