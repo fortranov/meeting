@@ -142,7 +142,10 @@ function renderActions(row) {
   return addBtn + editBtn;
 }
 
-function isHoliday(day) { return holidays.some(h => h.date === toISO(day)); }
+function isHoliday(day) {
+  const iso = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
+  return holidays.some(h => h.date === iso);
+}
 
 function renderDayHeader(day) {
   const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
