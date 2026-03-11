@@ -66,6 +66,15 @@ CREATE TABLE IF NOT EXISTS meeting_template_task (
   sort_order    INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS duty_event (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id  INTEGER NOT NULL,
+  event_type TEXT    NOT NULL,
+  start_date TEXT    NOT NULL,
+  end_date   TEXT    NOT NULL,
+  FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_meeting_date ON meeting(meeting_date);
 CREATE INDEX IF NOT EXISTS idx_task_meeting ON task(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_task_parent  ON task(parent_task_id);

@@ -84,6 +84,17 @@ try {
             requirePost();
             taskDeleteAction();
             break;
+        case 'duty_events':
+            dutyEventsAction();
+            break;
+        case 'duty_event_save':
+            requirePost();
+            dutyEventSaveAction();
+            break;
+        case 'duty_event_delete':
+            requirePost();
+            dutyEventDeleteAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -499,5 +510,53 @@ function personReorderAction(): void
     if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
     $stmt = $pdo->prepare('UPDATE person SET sort_order=:sort WHERE id=:id');
     foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function dutyEventsAction(): void
+{
+    $pdo   = db();
+    $year  = (int)($_GET['year']  ?? date('Y'));
+    $month = (int)($_GET['month'] ?? date('m'));
+    $start = sprintf('%04d-%02d-01', $year, $month);
+    $end   = date('Y-m-t', strtotime($start));
+    $stmt  = $pdo->prepare(
+        'SELECT id, person_id, event_type, start_date, end_date FROM duty_event
+         WHERE start_date <= :end AND end_date >= :start
+         ORDER BY person_id, start_date'
+    );
+    $stmt->execute([':start' => $start, ':end' => $end]);
+    jsonResponse(['events' => $stmt->fetchAll()]);
+}
+
+function dutyEventSaveAction(): void
+{
+    $pdo      = db();
+    $payload  = getJsonPayload();
+    $personId = (int)($payload['person_id']  ?? 0);
+    $type     = trim((string)($payload['event_type'] ?? ''));
+    $start    = trim((string)($payload['start_date'] ?? ''));
+    $end      = trim((string)($payload['end_date']   ?? ''));
+    $valid    = ['duty','no_duty','vacation','business_trip','sick_leave','study'];
+    if (!$personId || !in_array($type, $valid, true) || !$start || !$end) {
+        jsonResponse(['error' => 'Неверные данные'], 422);
+    }
+    if ($end < $start) $end = $start;
+    $check = $pdo->prepare(
+        'SELECT COUNT(*) AS c FROM duty_event WHERE person_id=:pid AND start_date<=:end AND end_date>=:start'
+    );
+    $check->execute([':pid' => $personId, ':start' => $start, ':end' => $end]);
+    if ((int)$check->fetch()['c'] > 0) jsonResponse(['error' => 'Пересечение с существующим событием'], 409);
+    $pdo->prepare(
+        'INSERT INTO duty_event (person_id, event_type, start_date, end_date) VALUES (:pid,:type,:start,:end)'
+    )->execute([':pid' => $personId, ':type' => $type, ':start' => $start, ':end' => $end]);
+    jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+}
+
+function dutyEventDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM duty_event WHERE id=:id')->execute([':id' => $id]);
     jsonResponse(['ok' => true]);
 }

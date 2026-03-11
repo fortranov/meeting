@@ -11,7 +11,7 @@
 <body>
 <header class="top-nav">
   <div class="brand">Новый Аналитический Комплекс</div>
-  <nav><a href="index.php">Главная</a><a href="settings.php">Настройки</a></nav>
+  <nav><a href="index.php">Главная</a><a href="duty.php">График дежурств</a><a href="settings.php">Настройки</a></nav>
 </header>
 <main class="page">
   <section class="plan-board">

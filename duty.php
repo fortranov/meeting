@@ -1,0 +1,54 @@
+<?php declare(strict_types=1); require_once __DIR__ . '/db.php'; db(); ?>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>График дежурств — Новый Аналитический Комплекс</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="top-nav">
+  <div class="brand">Новый Аналитический Комплекс</div>
+  <nav>
+    <a href="index.php">Главная</a>
+    <a href="duty.php" class="active">График дежурств</a>
+    <a href="settings.php">Настройки</a>
+  </nav>
+</header>
+<main class="page">
+  <section class="plan-board">
+    <div class="board-controls">
+      <h1>График дежурств</h1>
+      <div class="board-nav">
+        <button id="prevMonth">← Назад</button>
+        <div class="calendar-info"><h2 id="monthLabel"></h2></div>
+        <button id="nextMonth">Вперёд →</button>
+      </div>
+    </div>
+    <div class="duty-table-outer">
+      <div class="duty-header-wrap">
+        <div id="dutyHeader" class="duty-table"></div>
+      </div>
+      <div class="duty-body-wrap">
+        <div id="dutyBody" class="duty-table"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="deleteEventModal" class="modal hidden">
+  <div class="modal-box" style="max-width:340px">
+    <h3>Удалить событие?</h3>
+    <p id="deleteEventDesc" style="margin:0;color:var(--muted);font-size:0.9rem"></p>
+    <div class="modal-actions">
+      <button id="deleteEventNo">Нет</button>
+      <button id="deleteEventYes" style="background:var(--danger);color:#fff;border-color:var(--danger)">Да</button>
+    </div>
+  </div>
+</div>
+
+<script src="duty.js"></script>
+</body>
+</html>

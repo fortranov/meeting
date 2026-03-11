@@ -13,6 +13,7 @@
   <div class="brand">Новый Аналитический Комплекс</div>
   <nav>
     <a href="index.php">Главная</a>
+    <a href="duty.php">График дежурств</a>
     <a href="settings.php" class="active">Настройки</a>
   </nav>
 </header>

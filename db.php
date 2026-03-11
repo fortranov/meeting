@@ -97,6 +97,15 @@ function migrateDatabase(PDO $pdo): void
     $dirCols = array_column($pdo->query("PRAGMA table_info(direction)")->fetchAll(), 'name');
     if (!in_array('color', $dirCols)) $pdo->exec("ALTER TABLE direction ADD COLUMN color TEXT");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS duty_event (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_id  INTEGER NOT NULL,
+        event_type TEXT    NOT NULL,
+        start_date TEXT    NOT NULL,
+        end_date   TEXT    NOT NULL,
+        FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE
+    )");
+
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {
         $pdo->exec("INSERT INTO task_status (name, sort_order, color) VALUES ('В работе', 1, '#3b82f6'), ('Риск', 2, '#f97316'), ('Выполнено', 3, '#22c55e')");
         $pdo->exec("UPDATE task_status SET is_system=1 WHERE name='Выполнено'");
