@@ -102,7 +102,12 @@ function timelineAction(): void
     $taskRows = $pdo->query(
         'SELECT t.id, t.meeting_id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
                 GROUP_CONCAT(p.full_name, ", ") AS responsible,
-                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids
+                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids,
+                (SELECT d.color FROM task_person tp2
+                 JOIN person p2 ON p2.id = tp2.person_id
+                 LEFT JOIN direction d ON d.id = p2.direction_id
+                 WHERE tp2.task_id = t.id
+                 ORDER BY tp2.id LIMIT 1) AS direction_color
          FROM task t
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
@@ -264,7 +269,7 @@ function jsonResponse(array $payload, int $status = 200): void
 
 function directionsAction(): void
 {
-    $rows = db()->query('SELECT id, name, sort_order FROM direction ORDER BY sort_order, id')->fetchAll();
+    $rows = db()->query('SELECT id, name, color, sort_order FROM direction ORDER BY sort_order, id')->fetchAll();
     jsonResponse(['directions' => $rows]);
 }
 
@@ -273,14 +278,26 @@ function directionSaveAction(): void
     $pdo     = db();
     $payload = getJsonPayload();
     $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
-    $name    = trim((string)($payload['name'] ?? ''));
+
+    // Color-only update
+    if ($id && array_key_exists('color', $payload) && !array_key_exists('name', $payload)) {
+        $color = $payload['color'] ? trim((string)$payload['color']) : null;
+        if ($color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
+        $pdo->prepare('UPDATE direction SET color=:color WHERE id=:id')->execute([':color' => $color, ':id' => $id]);
+        jsonResponse(['ok' => true, 'id' => $id]);
+    }
+
+    $name = trim((string)($payload['name'] ?? ''));
     if ($name === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+    $color = isset($payload['color']) ? trim((string)$payload['color']) : null;
+    if ($color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
 
     if ($id) {
         $pdo->prepare('UPDATE direction SET name=:name WHERE id=:id')->execute([':name' => $name, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM direction')->fetch()['m']);
-        $pdo->prepare('INSERT INTO direction (name, sort_order) VALUES (:name, :sort)')->execute([':name' => $name, ':sort' => $max + 1]);
+        $pdo->prepare('INSERT INTO direction (name, color, sort_order) VALUES (:name, :color, :sort)')
+            ->execute([':name' => $name, ':color' => $color, ':sort' => $max + 1]);
         $id = (int)$pdo->lastInsertId();
     }
     jsonResponse(['ok' => true, 'id' => $id]);

@@ -59,12 +59,16 @@ function renderDirections() {
   }
   list.innerHTML = directions.map(d => `
     <div class="setting-item" data-id="${d.id}">
+      <button class="color-swatch" data-id="${d.id}" data-type="direction" style="background:${d.color || '#e2e8f0'}" title="Выбрать цвет"></button>
       <span class="item-name" contenteditable="true" data-id="${d.id}" data-type="direction">${escHtml(d.name)}</span>
       <button class="btn-icon-del" data-id="${d.id}" data-type="direction" title="Удалить">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
       </button>
     </div>`).join('');
 
+  list.querySelectorAll('.color-swatch[data-type="direction"]').forEach(btn =>
+    btn.onclick = e => openDirectionColorPicker(e, Number(btn.dataset.id))
+  );
   list.querySelectorAll('.item-name[data-type="direction"]').forEach(el => {
     el.onblur = () => renameDirection(Number(el.dataset.id), el.textContent.trim());
     el.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
@@ -77,7 +81,8 @@ function renderDirections() {
 async function saveDirection() {
   const name = document.getElementById('newDirectionName').value.trim();
   if (!name) return;
-  await api('direction_save', { name });
+  const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  await api('direction_save', { name, color });
   document.getElementById('newDirectionName').value = '';
   hideRow('addDirectionRow');
   await loadDirections();
@@ -389,6 +394,36 @@ function openColorPicker(e, statusId) {
       const color = sw.dataset.color || null;
       await api('status_save', { id: statusId, color });
       statuses = statuses.map(s => s.id === statusId ? { ...s, color } : s);
+      btn.style.background = color || '#e2e8f0';
+      popup.remove();
+    };
+  });
+
+  setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
+}
+
+function openDirectionColorPicker(e, directionId) {
+  e.stopPropagation();
+  document.querySelectorAll('.color-picker-popup').forEach(p => p.remove());
+
+  const btn   = e.currentTarget;
+  const popup = document.createElement('div');
+  popup.className = 'color-picker-popup';
+  popup.innerHTML =
+    PALETTE.map(c => `<button class="palette-swatch" style="background:${c}" data-color="${c}" title="${c}"></button>`).join('') +
+    `<button class="palette-swatch palette-none" data-color="" title="Без цвета"></button>`;
+
+  document.body.appendChild(popup);
+  const rect = btn.getBoundingClientRect();
+  popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  popup.style.left = (rect.left  + window.scrollX) + 'px';
+
+  popup.querySelectorAll('.palette-swatch').forEach(sw => {
+    sw.onclick = async e2 => {
+      e2.stopPropagation();
+      const color = sw.dataset.color || null;
+      await api('direction_save', { id: directionId, color });
+      directions = directions.map(d => d.id === directionId ? { ...d, color } : d);
       btn.style.background = color || '#e2e8f0';
       popup.remove();
     };

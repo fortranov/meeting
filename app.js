@@ -2,7 +2,7 @@ const VISIBLE_DAYS = 30;
 const weekdays  = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu  = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-let visibleStart     = startOfWeek(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+let visibleStart     = addDays(startOfWeek(new Date()), -7);
 let selectedPersons  = [];
 let personOptions    = [];
 let timelineMeetings = [];
@@ -39,6 +39,7 @@ function bindEvents() {
   bodyWrap.addEventListener('scroll', () => { headerWrap.scrollLeft = bodyWrap.scrollLeft; });
 
   const search = document.getElementById('personSearch');
+  const dropdown = document.getElementById('personDropdown');
   search.oninput = async () => {
     const q   = search.value.trim();
     const res = await fetch(`api.php?action=persons&q=${encodeURIComponent(q)}`);
@@ -46,6 +47,8 @@ function bindEvents() {
     personOptions = data.persons || [];
     renderPersonDropdown();
   };
+  search.addEventListener('focus', () => dropdown.classList.remove('dropdown-hidden'));
+  search.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('dropdown-hidden'), 150));
 }
 
 async function loadStatuses() {
@@ -90,7 +93,7 @@ function renderTimeline() {
       </div>
       <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
       <div class="timeline-cell left-col left-3">${r.status ? statusPill(r.status) : ''}</div>
-      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status)).join('')}
+      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null)).join('')}
     </div>`).join('');
 
   timelineHeader.innerHTML = header;
@@ -117,6 +120,7 @@ function pushTaskRows(rows, task, meetingId, level) {
     end: task.end_date,
     status: task.status,
     level: level + 1,
+    directionColor: task.direction_color || null,
   });
   (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1));
 }
@@ -146,12 +150,21 @@ function isDoneStatus(status) {
   return st && Number(st.is_system) === 1;
 }
 
-function renderRangeCell(day, start, end, status = '') {
+function renderRangeCell(day, start, end, status = '', directionColor = null) {
   const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
   const d = toISO(day);
   if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
-  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"><div class="day-fill"></div></div>`;
+  let cellStyle = '';
+  let fillStyle = '';
+  if (directionColor) {
+    const r = parseInt(directionColor.slice(1, 3), 16);
+    const g = parseInt(directionColor.slice(3, 5), 16);
+    const b = parseInt(directionColor.slice(5, 7), 16);
+    cellStyle = ` style="background:rgba(${r},${g},${b},0.08)"`;
+    fillStyle = ` style="border-color:${directionColor};background:rgba(${r},${g},${b},0.07)"`;
+  }
+  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"${cellStyle}><div class="day-fill"${fillStyle}></div></div>`;
 }
 
 function pillStyleFromColor(hex) {
@@ -282,6 +295,8 @@ async function deleteTask() {
 
 function renderPersonDropdown() {
   const dropdown = document.getElementById('personDropdown');
+  const search = document.getElementById('personSearch');
+  if (document.activeElement !== search) dropdown.classList.add('dropdown-hidden');
   dropdown.innerHTML = personOptions
     .filter(p => !selectedPersons.some(s => s.id === p.id))
     .map(p => `<div class="dropdown-item" data-id="${p.id}">${escapeHtml(p.full_name)}<small>${escapeHtml(p.email || '')}</small></div>`)

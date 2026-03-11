@@ -3,6 +3,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS direction (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT    NOT NULL,
+  color      TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 
