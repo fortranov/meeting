@@ -73,6 +73,14 @@ function migrateDatabase(PDO $pdo): void
         $pdo->exec('PRAGMA foreign_keys = ON');
     }
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS task_person (
+        task_id   INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        PRIMARY KEY (task_id, person_id),
+        FOREIGN KEY (task_id)   REFERENCES task(id)   ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE
+    )");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS meeting_template_task (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
         title         TEXT    NOT NULL,
