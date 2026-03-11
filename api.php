@@ -107,7 +107,7 @@ function timelineAction(): void
                  JOIN person p2 ON p2.id = tp2.person_id
                  LEFT JOIN direction d ON d.id = p2.direction_id
                  WHERE tp2.task_id = t.id
-                 ORDER BY tp2.id LIMIT 1) AS direction_color
+                 ORDER BY tp2.person_id LIMIT 1) AS direction_color
          FROM task t
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
