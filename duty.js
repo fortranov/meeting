@@ -16,6 +16,7 @@ let curYear  = new Date().getFullYear();
 let curMonth = new Date().getMonth() + 1;
 let persons  = [];
 let events   = [];
+let holidays = [];
 let pending  = null; // { personId, type, startIso }
 let delId    = null;
 let hintEl   = null;
@@ -38,8 +39,7 @@ async function init() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { removeContextMenu(); cancelPending(); }
   });
-  await loadPersons();
-  await loadEvents();
+  await Promise.all([loadPersons(), loadEvents(), loadHolidays()]);
   render();
 }
 
@@ -59,6 +59,9 @@ async function loadPersons() {
 async function loadEvents() {
   events = ((await (await fetch(`api.php?action=duty_events&year=${curYear}&month=${curMonth}`)).json()).events) || [];
 }
+async function loadHolidays() {
+  holidays = ((await (await fetch('api.php?action=holidays')).json()).holidays) || [];
+}
 
 function render() {
   const total = daysInMonth(curYear, curMonth);
@@ -73,7 +76,7 @@ function render() {
       ${days.map(d => {
         const date    = new Date(curYear, curMonth - 1, d);
         const dow     = date.getDay();
-        const we      = dow === 0 || dow === 6;
+        const we      = dow === 0 || dow === 6 || holidays.some(h => h.date === fmtISO(curYear, curMonth, d));
         const wd      = WEEKDAYS[(dow + 6) % 7];
         const isToday = fmtISO(curYear, curMonth, d) === todayISO;
         return `<div class="duty-cell duty-day-hdr ${we ? 'weekend' : ''} ${isToday ? 'duty-today' : ''}">
@@ -90,7 +93,7 @@ function render() {
         const isoStr  = fmtISO(curYear, curMonth, d);
         const date    = new Date(curYear, curMonth - 1, d);
         const dow     = date.getDay();
-        const we      = dow === 0 || dow === 6;
+        const we      = dow === 0 || dow === 6 || holidays.some(h => h.date === fmtISO(curYear, curMonth, d));
         const evt     = pEvts.find(e => e.start_date <= isoStr && e.end_date >= isoStr);
         const cfg     = evt ? EVENT_CFG[evt.event_type] : null;
         const isPend  = pending && Number(pending.personId) === Number(p.id) && isoStr >= pending.startIso;

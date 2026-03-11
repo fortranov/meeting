@@ -56,6 +56,14 @@
 
     <section class="settings-card settings-card-wide">
       <div class="settings-card-header">
+        <h2>Праздники</h2>
+        <button class="btn-add" id="showAddHoliday">+ Добавить праздник</button>
+      </div>
+      <div id="holidaysList"></div>
+    </section>
+
+    <section class="settings-card settings-card-wide">
+      <div class="settings-card-header">
         <h2>Шаблон заседания</h2>
         <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
       </div>
@@ -84,6 +92,18 @@
     <div class="modal-actions">
       <button data-close="personModal">Отмена</button>
       <button id="savePersonBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Holiday modal -->
+<div id="holidayModal" class="modal hidden">
+  <div class="modal-box" style="max-width:360px">
+    <h3>Добавить праздник</h3>
+    <label>Дата<input id="holidayDate" type="date" /></label>
+    <div class="modal-actions">
+      <button data-close="holidayModal">Отмена</button>
+      <button id="saveHolidayBtn">Добавить</button>
     </div>
   </div>
 </div>

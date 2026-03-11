@@ -7,13 +7,19 @@ let selectedPersons  = [];
 let personOptions    = [];
 let timelineMeetings = [];
 let taskStatuses = [];
+let holidays = [];
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
 
 async function init() {
   bindEvents();
-  await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons()]);
+  await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
+}
+
+async function loadHolidays() {
+  const data = await (await fetch('api.php?action=holidays')).json();
+  holidays = data.holidays || [];
 }
 
 async function loadAllPersons() {
@@ -136,8 +142,10 @@ function renderActions(row) {
   return addBtn + editBtn;
 }
 
+function isHoliday(day) { return holidays.some(h => h.date === toISO(day)); }
+
 function renderDayHeader(day) {
-  const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
+  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const today   = toISO(day) === toISO(new Date()) ? 'today' : '';
   return `<div class="timeline-cell day-header ${weekend} ${today}">
     <span class="weekday">${weekdays[(day.getDay() + 6) % 7]}</span>
@@ -151,7 +159,7 @@ function isDoneStatus(status) {
 }
 
 function renderRangeCell(day, start, end, status = '', directionColor = null) {
-  const weekend = day.getDay() === 0 || day.getDay() === 6 ? 'weekend' : '';
+  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d = toISO(day);
   if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';

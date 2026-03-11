@@ -2,6 +2,7 @@ let directions     = [];
 let statuses       = [];
 let persons        = [];
 let templateTasks  = [];
+let holidays       = [];
 
 const PALETTE = [
   '#ef4444','#f97316','#eab308','#84cc16',
@@ -14,7 +15,7 @@ const PALETTE = [
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadHolidays()]);
 }
 
 function bindEvents() {
@@ -38,6 +39,14 @@ function bindEvents() {
   // Person modal
   document.getElementById('showAddPerson').onclick = () => openPersonModal();
   document.getElementById('savePersonBtn').onclick  = savePerson;
+
+  // Holidays
+  document.getElementById('showAddHoliday').onclick = () => {
+    document.getElementById('holidayDate').value = '';
+    document.getElementById('holidayModal').classList.remove('hidden');
+  };
+  document.getElementById('saveHolidayBtn').onclick = saveHoliday;
+
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => document.getElementById(btn.dataset.close).classList.add('hidden')
   );
@@ -370,6 +379,65 @@ async function deleteTemplateTask(id) {
   await api('template_task_delete', { id });
   document.getElementById('templateTaskModal').classList.add('hidden');
   await loadTemplateTasks();
+}
+
+// ─── Holidays ─────────────────────────────────────────────
+const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+async function loadHolidays() {
+  const data = await api('holidays');
+  holidays = data.holidays || [];
+  renderHolidays();
+}
+
+function renderHolidays() {
+  const el = document.getElementById('holidaysList');
+  if (!holidays.length) {
+    el.innerHTML = '<div class="empty-hint">Праздники не добавлены</div>';
+    return;
+  }
+  const byYear = {};
+  holidays.forEach(h => {
+    const y = h.date.slice(0, 4);
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(h);
+  });
+  el.innerHTML = Object.keys(byYear).sort().map(year => {
+    const items = byYear[year].sort((a, b) => a.date.localeCompare(b.date));
+    return `<details class="holiday-accordion">
+      <summary class="holiday-accordion-btn">${year}</summary>
+      <div class="holiday-accordion-body settings-list">
+        ${items.map(h => {
+          const d = new Date(h.date + 'T00:00:00');
+          return `<div class="setting-item">
+            <span class="item-name">${d.getDate()} ${MONTHS_GEN[d.getMonth()]}</span>
+            <button class="btn-icon-del" data-id="${h.id}" title="Удалить">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+    </details>`;
+  }).join('');
+  el.querySelectorAll('.btn-icon-del').forEach(btn =>
+    btn.onclick = () => deleteHoliday(Number(btn.dataset.id))
+  );
+}
+
+async function saveHoliday() {
+  const date = document.getElementById('holidayDate').value;
+  if (!date) return alert('Выберите дату');
+  try {
+    await api('holiday_save', { date });
+  } catch {}
+  document.getElementById('holidayModal').classList.add('hidden');
+  await loadHolidays();
+}
+
+async function deleteHoliday(id) {
+  if (!confirm('Удалить праздник?')) return;
+  await api('holiday_delete', { id });
+  await loadHolidays();
 }
 
 function openColorPicker(e, statusId) {

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__get_file_contents",
+      "mcp__github__push_files",
+      "mcp__github__merge_pull_request",
+      "mcp__github__create_or_update_file",
+      "Bash(git:*)",
+      "Bash(echo:*)",
+      "Bash(curl:*)",
+      "Bash(__NEW_LINE_87bc5b0c3a6d2b1d__ curl:*)",
+      "Bash(__NEW_LINE_dc313b7f9b43319b__ sleep:*)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:meetings.work.gd)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(grep -n \"case 'directions'\\\\|case 'statuses'\\\\|case 'person_save'\\\\|case 'person_reorder'\\\\|function directionsAction\\\\|function statusesAction\\\\|function personSaveAction\\\\|function personReorderAction\" \"D:/projects/meetings/api.php\")"
+    ]
+  }
+}

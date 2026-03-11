@@ -712,6 +712,36 @@ body {
 .person-name { font-size: 0.88rem; font-weight: 500; display: block; }
 .person-dir  { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 1px; }
 
+/* ─── Holiday Accordion ─── */
+.holiday-accordion {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+.holiday-accordion-btn {
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+  background: #f7f9ff;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.holiday-accordion-btn::-webkit-details-marker { display: none; }
+.holiday-accordion-btn::before {
+  content: '▶';
+  font-size: 0.6rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.holiday-accordion[open] .holiday-accordion-btn::before { transform: rotate(90deg); }
+.holiday-accordion-body { padding: 6px 8px 8px; }
+
 /* ─── Duty Schedule ─── */
 .duty-table-outer {
   border: 1px solid var(--border);

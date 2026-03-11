@@ -84,6 +84,17 @@ try {
             requirePost();
             taskDeleteAction();
             break;
+        case 'holidays':
+            holidaysAction();
+            break;
+        case 'holiday_save':
+            requirePost();
+            holidaySaveAction();
+            break;
+        case 'holiday_delete':
+            requirePost();
+            holidayDeleteAction();
+            break;
         case 'duty_events':
             dutyEventsAction();
             break;
@@ -510,6 +521,32 @@ function personReorderAction(): void
     if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
     $stmt = $pdo->prepare('UPDATE person SET sort_order=:sort WHERE id=:id');
     foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function holidaysAction(): void
+{
+    $rows = db()->query('SELECT id, date FROM holiday ORDER BY date')->fetchAll();
+    jsonResponse(['holidays' => $rows]);
+}
+
+function holidaySaveAction(): void
+{
+    $date = trim((string)(getJsonPayload()['date'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) jsonResponse(['error' => 'Неверная дата'], 422);
+    try {
+        db()->prepare('INSERT INTO holiday (date) VALUES (:date)')->execute([':date' => $date]);
+    } catch (\PDOException) {
+        jsonResponse(['error' => 'Такая дата уже добавлена'], 409);
+    }
+    jsonResponse(['ok' => true]);
+}
+
+function holidayDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM holiday WHERE id=:id')->execute([':id' => $id]);
     jsonResponse(['ok' => true]);
 }
 

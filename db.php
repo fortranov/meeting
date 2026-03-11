@@ -97,6 +97,11 @@ function migrateDatabase(PDO $pdo): void
     $dirCols = array_column($pdo->query("PRAGMA table_info(direction)")->fetchAll(), 'name');
     if (!in_array('color', $dirCols)) $pdo->exec("ALTER TABLE direction ADD COLUMN color TEXT");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS holiday (
+        id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL UNIQUE
+    )");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS duty_event (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         person_id  INTEGER NOT NULL,
