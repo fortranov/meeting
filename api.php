@@ -147,8 +147,8 @@ function timelineAction(): void
              JOIN duty_event de ON de.person_id = tp.person_id
              JOIN task t    ON t.id  = tp.task_id
              WHERE de.event_type IN (\'vacation\', \'study\')
-               AND de.start_date <= t.end_date
-               AND de.end_date   >= t.start_date
+               AND DATE(de.start_date) <= DATE(t.end_date)
+               AND DATE(de.end_date)   >= DATE(t.start_date)
              ORDER BY tp.task_id, p.full_name, de.start_date'
         )->fetchAll();
         foreach ($cRows as $r) {
