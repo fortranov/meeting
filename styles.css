@@ -966,3 +966,42 @@ body {
   accent-color: var(--primary);
   cursor: pointer;
 }
+
+/* ─── Duty stats modal ─── */
+.stats-modal-box {
+  width: 720px;
+}
+.stats-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 60vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.stats-table thead { position: sticky; top: 0; z-index: 1; }
+.stats-table th {
+  background: #f4f7fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.stats-table th:first-child { text-align: left; min-width: 160px; }
+.stats-table td {
+  padding: 7px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.stats-table tr:last-child td { border-bottom: none; }
+.stats-table .stats-name { text-align: left; font-weight: 500; }
+.stats-table .stats-zero { color: var(--border); }

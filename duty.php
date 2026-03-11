@@ -32,6 +32,7 @@ if (!$access['can_view']) accessDeniedPage();
         <button id="prevMonth">← Назад</button>
         <div class="calendar-info"><h2 id="monthLabel"></h2></div>
         <button id="nextMonth">Вперёд →</button>
+        <button id="statsBtn">Статистика</button>
       </div>
     </div>
     <div class="duty-table-outer">
@@ -44,6 +45,17 @@ if (!$access['can_view']) accessDeniedPage();
     </div>
   </section>
 </main>
+
+<div id="statsModal" class="modal hidden">
+  <div class="modal-box stats-modal-box">
+    <h3>Статистика дежурств</h3>
+    <div class="stats-table-wrap" id="statsTableWrap"></div>
+    <div class="modal-actions">
+      <div style="flex:1"></div>
+      <button id="closeStatsBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
 
 <div id="deleteEventModal" class="modal hidden">
   <div class="modal-box" style="max-width:340px">

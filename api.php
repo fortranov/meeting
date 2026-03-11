@@ -106,6 +106,9 @@ try {
             requirePost();
             dutyEventDeleteAction();
             break;
+        case 'duty_stats':
+            dutyStatsAction();
+            break;
         case 'site_settings':
             siteSettingsAction();
             break;
@@ -653,6 +656,49 @@ function dutyEventDeleteAction(): void
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
     db()->prepare('DELETE FROM duty_event WHERE id=:id')->execute([':id' => $id]);
     jsonResponse(['ok' => true]);
+}
+
+function dutyStatsAction(): void
+{
+    $pdo = db();
+
+    // All persons (include those with zero events)
+    $persons = $pdo->query('SELECT id, full_name FROM person ORDER BY sort_order, id')->fetchAll();
+
+    // For each duty event, determine: day_idx 0-6 (Mon-Sun) or 7 (holiday)
+    $rows = $pdo->query(
+        'SELECT de.person_id,
+                CASE WHEN h.date IS NOT NULL THEN 7
+                     ELSE (CAST(strftime(\'%w\', de.start_date) AS INTEGER) + 6) % 7
+                END AS day_idx
+         FROM duty_event de
+         LEFT JOIN holiday h ON h.date = de.start_date
+         WHERE de.event_type = \'duty\'
+         ORDER BY de.person_id'
+    )->fetchAll();
+
+    $statsMap = [];
+    foreach ($persons as $p) {
+        $statsMap[(int)$p['id']] = [
+            'person_id' => (int)$p['id'],
+            'full_name' => $p['full_name'],
+            'days'      => [0, 0, 0, 0, 0, 0, 0],
+            'holidays'  => 0,
+        ];
+    }
+
+    foreach ($rows as $r) {
+        $pid = (int)$r['person_id'];
+        $idx = (int)$r['day_idx'];
+        if (!isset($statsMap[$pid])) continue;
+        if ($idx === 7) {
+            $statsMap[$pid]['holidays']++;
+        } else {
+            $statsMap[$pid]['days'][$idx]++;
+        }
+    }
+
+    jsonResponse(['stats' => array_values($statsMap)]);
 }
 
 function siteSettingsAction(): void

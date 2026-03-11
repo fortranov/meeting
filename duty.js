@@ -32,8 +32,11 @@ function escHtml(s = '') {
 }
 
 async function init() {
-  document.getElementById('prevMonth').onclick = () => navigate(-1);
-  document.getElementById('nextMonth').onclick = () => navigate(1);
+  document.getElementById('prevMonth').onclick  = () => navigate(-1);
+  document.getElementById('nextMonth').onclick  = () => navigate(1);
+  document.getElementById('statsBtn').onclick   = openStatsModal;
+  document.getElementById('closeStatsBtn').onclick = () =>
+    document.getElementById('statsModal').classList.add('hidden');
   document.getElementById('deleteEventNo').onclick  = closeDelModal;
   document.getElementById('deleteEventYes').onclick = doDelete;
   document.addEventListener('keydown', e => {
@@ -115,6 +118,36 @@ function render() {
   document.querySelectorAll('.duty-day-cell').forEach(cell =>
     cell.addEventListener('click', onCellClick)
   );
+}
+
+async function openStatsModal() {
+  const data  = await (await fetch('api.php?action=duty_stats')).json();
+  const stats = data.stats || [];
+  const wdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+  const bodyRows = stats.map(s => {
+    const dayCells = s.days.map(c =>
+      `<td class="${c === 0 ? 'stats-zero' : ''}">${c}</td>`
+    ).join('');
+    const hol = s.holidays;
+    return `<tr>
+      <td class="stats-name">${escHtml(s.full_name)}</td>
+      ${dayCells}
+      <td class="${hol === 0 ? 'stats-zero' : ''}">${hol}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('statsTableWrap').innerHTML =
+    `<table class="stats-table">
+      <thead><tr>
+        <th>Сотрудник</th>
+        ${wdays.map(d => `<th>${d}</th>`).join('')}
+        <th>Праздники</th>
+      </tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
+
+  document.getElementById('statsModal').classList.remove('hidden');
 }
 
 function onCellClick(e) {
