@@ -907,3 +907,62 @@ body {
   border-color: #ffe4aa;
 }
 .btn-suppress:hover { background: #ffe4aa; color: #8a4800; border-color: #ffcc66; }
+
+/* ─── IP access global checkbox ─── */
+.ip-access-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Page permissions table in person modal ─── */
+.page-perms-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.page-perms-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.page-perms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.page-perms-table th {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  text-align: center;
+  padding: 7px 12px;
+  background: #f4f7fd;
+  border-bottom: 1px solid var(--border);
+}
+.page-perms-table th:first-child { text-align: left; }
+.page-perms-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+.page-perms-table tr:last-child td { border-bottom: none; }
+.page-perms-table td:first-child { text-align: left; font-size: 0.88rem; font-weight: 500; }
+.page-perms-table input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}

@@ -43,10 +43,17 @@ function migrateDatabase(PDO $pdo): void
     )");
 
     $cols = array_column($pdo->query("PRAGMA table_info(person)")->fetchAll(), 'name');
-    if (!in_array('first_name',   $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN first_name TEXT NOT NULL DEFAULT ''");
-    if (!in_array('last_name',    $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN last_name TEXT NOT NULL DEFAULT ''");
-    if (!in_array('direction_id', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN direction_id INTEGER");
-    if (!in_array('sort_order',   $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('first_name',         $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN first_name TEXT NOT NULL DEFAULT ''");
+    if (!in_array('last_name',          $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN last_name TEXT NOT NULL DEFAULT ''");
+    if (!in_array('direction_id',       $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN direction_id INTEGER");
+    if (!in_array('sort_order',         $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('ip',                 $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN ip TEXT NOT NULL DEFAULT ''");
+    if (!in_array('page_main_view',     $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_main_view INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_main_edit',     $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_main_edit INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_duty_view',     $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_duty_view INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_duty_edit',     $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_duty_edit INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_settings_view', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_settings_view INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_settings_edit', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_settings_edit INTEGER NOT NULL DEFAULT 0");
 
     // Recreate task table if CHECK constraint present (remove it)
     $taskSql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='task'")->fetch()['sql'] ?? '';
@@ -109,6 +116,11 @@ function migrateDatabase(PDO $pdo): void
         start_date TEXT    NOT NULL,
         end_date   TEXT    NOT NULL,
         FOREIGN KEY (person_id) REFERENCES person(id) ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT ''
     )");
 
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {

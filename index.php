@@ -1,4 +1,11 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/db.php'; db(); ?>
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/access.php';
+db();
+$access = checkPageAccess('main');
+if (!$access['can_view']) accessDeniedPage();
+?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -96,6 +103,7 @@
   </div>
 </div>
 
+<script>const PAGE_CAN_EDIT = <?= $access['can_edit'] ? 'true' : 'false' ?>;</script>
 <script src="app.js"></script>
 </body>
 </html>

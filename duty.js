@@ -118,6 +118,7 @@ function render() {
 }
 
 function onCellClick(e) {
+  if (typeof PAGE_CAN_EDIT !== 'undefined' && !PAGE_CAN_EDIT) return;
   e.stopPropagation();
   removeContextMenu();
 

@@ -1,4 +1,11 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/db.php'; db(); ?>
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/access.php';
+db();
+$access = checkPageAccess('settings');
+if (!$access['can_view']) accessDeniedPage();
+?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -52,6 +59,12 @@
         <button class="btn-add" id="showAddPerson">+ Добавить</button>
       </div>
       <div id="personsList" class="settings-list persons-list"></div>
+      <div class="ip-access-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="ipAccessEnabled" />
+          Доступ по ip
+        </label>
+      </div>
     </section>
 
     <section class="settings-card settings-card-wide">
@@ -89,6 +102,32 @@
       </select>
     </label>
     <label>Email (необязательно)<input id="personEmail" type="email" /></label>
+    <label>IP-адрес (необязательно)<input id="personIp" placeholder="например, 192.168.1.100" /></label>
+    <div class="page-perms-section">
+      <span class="page-perms-title">Права доступа к страницам</span>
+      <table class="page-perms-table">
+        <thead>
+          <tr><th>Страница</th><th>Просмотр</th><th>Редактирование</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Главная</td>
+            <td><input type="checkbox" id="permMainView" /></td>
+            <td><input type="checkbox" id="permMainEdit" /></td>
+          </tr>
+          <tr>
+            <td>График дежурств</td>
+            <td><input type="checkbox" id="permDutyView" /></td>
+            <td><input type="checkbox" id="permDutyEdit" /></td>
+          </tr>
+          <tr>
+            <td>Настройки</td>
+            <td><input type="checkbox" id="permSettView" /></td>
+            <td><input type="checkbox" id="permSettEdit" /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div class="modal-actions">
       <button data-close="personModal">Отмена</button>
       <button id="savePersonBtn">Сохранить</button>

@@ -15,6 +15,9 @@ const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
 
 async function init() {
+  if (typeof PAGE_CAN_EDIT !== 'undefined' && !PAGE_CAN_EDIT) {
+    document.getElementById('addMeetingBtn').classList.add('hidden');
+  }
   bindEvents();
   await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
 }
@@ -154,6 +157,7 @@ const addSvg  = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stro
 const editSvg = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/></svg>`;
 
 function renderActions(row) {
+  if (typeof PAGE_CAN_EDIT !== 'undefined' && !PAGE_CAN_EDIT) return '';
   const addBtn = `<button class="btn-icon" title="Добавить задачу" data-action="add-task" data-meeting="${row.meetingId}"${row.type !== 'meeting' ? ` data-parent="${row.id}"` : ''}>${addSvg}</button>`;
   const editBtn = row.type === 'meeting'
     ? `<button class="btn-icon" title="Редактировать заседание" data-action="edit-meeting" data-id="${row.meetingId}">${editSvg}</button>`

@@ -15,7 +15,7 @@ const PALETTE = [
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadHolidays()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadHolidays(), loadSiteSettings()]);
 }
 
 function bindEvents() {
@@ -39,6 +39,11 @@ function bindEvents() {
   // Person modal
   document.getElementById('showAddPerson').onclick = () => openPersonModal();
   document.getElementById('savePersonBtn').onclick  = savePerson;
+
+  // IP access global setting
+  document.getElementById('ipAccessEnabled').onchange = async function () {
+    await api('site_settings_save', { ip_access_enabled: this.checked ? '1' : '0' });
+  };
 
   // Holidays
   document.getElementById('showAddHoliday').onclick = () => {
@@ -249,6 +254,9 @@ function openPersonModal(id = null) {
   document.getElementById('personLastName').value   = '';
   document.getElementById('personEmail').value      = '';
   document.getElementById('personDirection').value  = '';
+  document.getElementById('personIp').value         = '';
+  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit']
+    .forEach(eid => { document.getElementById(eid).checked = false; });
 
   if (id) {
     const p = persons.find(x => x.id === id);
@@ -257,6 +265,13 @@ function openPersonModal(id = null) {
       document.getElementById('personLastName').value  = p.last_name  || '';
       document.getElementById('personEmail').value     = p.email      || '';
       document.getElementById('personDirection').value = p.direction_id || '';
+      document.getElementById('personIp').value        = p.ip || '';
+      document.getElementById('permMainView').checked  = !!Number(p.page_main_view);
+      document.getElementById('permMainEdit').checked  = !!Number(p.page_main_edit);
+      document.getElementById('permDutyView').checked  = !!Number(p.page_duty_view);
+      document.getElementById('permDutyEdit').checked  = !!Number(p.page_duty_edit);
+      document.getElementById('permSettView').checked  = !!Number(p.page_settings_view);
+      document.getElementById('permSettEdit').checked  = !!Number(p.page_settings_edit);
     }
   }
 }
@@ -264,11 +279,18 @@ function openPersonModal(id = null) {
 async function savePerson() {
   const id = document.getElementById('personId').value;
   const payload = {
-    id:           id || undefined,
-    first_name:   document.getElementById('personFirstName').value.trim(),
-    last_name:    document.getElementById('personLastName').value.trim(),
-    email:        document.getElementById('personEmail').value.trim(),
-    direction_id: document.getElementById('personDirection').value || null,
+    id:                 id || undefined,
+    first_name:         document.getElementById('personFirstName').value.trim(),
+    last_name:          document.getElementById('personLastName').value.trim(),
+    email:              document.getElementById('personEmail').value.trim(),
+    direction_id:       document.getElementById('personDirection').value || null,
+    ip:                 document.getElementById('personIp').value.trim(),
+    page_main_view:     document.getElementById('permMainView').checked ? 1 : 0,
+    page_main_edit:     document.getElementById('permMainEdit').checked ? 1 : 0,
+    page_duty_view:     document.getElementById('permDutyView').checked ? 1 : 0,
+    page_duty_edit:     document.getElementById('permDutyEdit').checked ? 1 : 0,
+    page_settings_view: document.getElementById('permSettView').checked ? 1 : 0,
+    page_settings_edit: document.getElementById('permSettEdit').checked ? 1 : 0,
   };
   if (!payload.first_name && !payload.last_name) return alert('Введите имя или фамилию');
   await api('person_save', payload);
@@ -551,6 +573,12 @@ function hideRow(rowId) {
 
 function escHtml(s = '') {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadSiteSettings() {
+  const data = await api('site_settings');
+  const settings = data.settings || {};
+  document.getElementById('ipAccessEnabled').checked = settings['ip_access_enabled'] === '1';
 }
 
 init();

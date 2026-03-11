@@ -106,6 +106,13 @@ try {
             requirePost();
             dutyEventDeleteAction();
             break;
+        case 'site_settings':
+            siteSettingsAction();
+            break;
+        case 'site_settings_save':
+            requirePost();
+            siteSettingsSaveAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -210,10 +217,13 @@ function personsAction(): void
     $pdo = db();
     $q = trim((string)($_GET['q'] ?? ''));
 
+    $fields = 'id, first_name, last_name, full_name, email, direction_id, sort_order,
+               ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
+               page_settings_view, page_settings_edit';
     if ($q === '') {
-        $stmt = $pdo->query('SELECT id, first_name, last_name, full_name, email, direction_id, sort_order FROM person ORDER BY sort_order, id LIMIT 50');
+        $stmt = $pdo->query("SELECT $fields FROM person ORDER BY sort_order, id LIMIT 50");
     } else {
-        $stmt = $pdo->prepare('SELECT id, first_name, last_name, full_name, email, direction_id, sort_order FROM person WHERE full_name LIKE :q OR email LIKE :q ORDER BY sort_order, id LIMIT 50');
+        $stmt = $pdo->prepare("SELECT $fields FROM person WHERE full_name LIKE :q OR email LIKE :q ORDER BY sort_order, id LIMIT 50");
         $stmt->execute([':q' => '%' . $q . '%']);
     }
     jsonResponse(['persons' => $stmt->fetchAll()]);
@@ -426,17 +436,39 @@ function personSaveAction(): void
     $lastName  = trim((string)($payload['last_name']  ?? ''));
     $email     = trim((string)($payload['email']      ?? ''));
     $dirId     = isset($payload['direction_id']) && $payload['direction_id'] !== '' ? (int)$payload['direction_id'] : null;
+    $ip        = trim((string)($payload['ip'] ?? ''));
     $fullName  = trim("$firstName $lastName");
+
+    $pmv = (int)!empty($payload['page_main_view']);
+    $pme = (int)!empty($payload['page_main_edit']);
+    $pdv = (int)!empty($payload['page_duty_view']);
+    $pde = (int)!empty($payload['page_duty_edit']);
+    $psv = (int)!empty($payload['page_settings_view']);
+    $pse = (int)!empty($payload['page_settings_edit']);
 
     if ($fullName === '') jsonResponse(['error' => 'Имя не может быть пустым'], 422);
 
     if ($id) {
-        $pdo->prepare('UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, email=:email, direction_id=:dir WHERE id=:id')
-            ->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName, ':email' => $email ?: null, ':dir' => $dirId, ':id' => $id]);
+        $pdo->prepare(
+            'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, email=:email,
+             direction_id=:dir, ip=:ip, page_main_view=:pmv, page_main_edit=:pme,
+             page_duty_view=:pdv, page_duty_edit=:pde, page_settings_view=:psv,
+             page_settings_edit=:pse WHERE id=:id'
+        )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
+            ':email' => $email ?: null, ':dir' => $dirId, ':ip' => $ip,
+            ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
+            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
-        $pdo->prepare('INSERT INTO person (first_name, last_name, full_name, email, direction_id, sort_order) VALUES (:fn, :ln, :full, :email, :dir, :sort)')
-            ->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName, ':email' => $email ?: null, ':dir' => $dirId, ':sort' => $max + 1]);
+        $pdo->prepare(
+            'INSERT INTO person (first_name, last_name, full_name, email, direction_id, sort_order,
+             ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
+             page_settings_view, page_settings_edit)
+             VALUES (:fn,:ln,:full,:email,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse)'
+        )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
+            ':email' => $email ?: null, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
+            ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
+            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse]);
         $id = (int)$pdo->lastInsertId();
     }
     jsonResponse(['ok' => true, 'id' => $id]);
@@ -620,5 +652,30 @@ function dutyEventDeleteAction(): void
     $id = (int)(getJsonPayload()['id'] ?? 0);
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
     db()->prepare('DELETE FROM duty_event WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function siteSettingsAction(): void
+{
+    try {
+        $rows = db()->query('SELECT key, value FROM app_settings')->fetchAll();
+        $settings = [];
+        foreach ($rows as $r) $settings[$r['key']] = $r['value'];
+        jsonResponse(['settings' => $settings]);
+    } catch (\Throwable) {
+        jsonResponse(['settings' => []]);
+    }
+}
+
+function siteSettingsSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $allowed = ['ip_access_enabled'];
+    foreach ($allowed as $key) {
+        if (!array_key_exists($key, $payload)) continue;
+        $pdo->prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (:k, :v)')
+            ->execute([':k' => $key, ':v' => (string)$payload[$key]]);
+    }
     jsonResponse(['ok' => true]);
 }
