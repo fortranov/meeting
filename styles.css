@@ -172,8 +172,8 @@ body {
 
 /* ─── Sticky left cols ─── */
 .left-col { position: sticky; left: 0; z-index: 10; background: inherit; }
-.left-2 { left: 220px; }
-.left-3 { left: 330px; }
+.left-2 { left: 200px; }
+.left-3 { left: 300px; }
 
 .header .timeline-cell {
   font-size: 0.72rem;
@@ -184,7 +184,7 @@ body {
 }
 
 /* ─── Item cell ─── */
-.item-cell { gap: 4px; overflow: hidden; font-size: 0.84rem; }
+.item-cell { position: relative; overflow: hidden; font-size: 0.84rem; }
 .item-cell > span:first-child {
   flex: 1;
   min-width: 0;
@@ -197,15 +197,24 @@ body {
 .item-cell.lvl-2 > span:first-child { padding-left: 28px; color: #4d5a7a; font-size: 0.82rem; }
 .item-cell.lvl-3 > span:first-child { padding-left: 42px; color: #4d5a7a; font-size: 0.82rem; }
 
-/* ─── Action buttons (appear on row hover) ─── */
+/* ─── Action buttons (appear on row hover, overlay title) ─── */
 .actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   display: flex;
+  align-items: center;
   gap: 2px;
+  padding-left: 24px;
+  padding-right: 4px;
   opacity: 0;
   transition: opacity 0.15s;
-  flex-shrink: 0;
+  background: linear-gradient(to right, transparent, var(--surface) 40%);
 }
-.timeline-row:hover .actions { opacity: 1; }
+.timeline-row.meeting .actions { background: linear-gradient(to right, transparent, #f9fbff 40%); }
+.timeline-row:hover .actions { opacity: 1; background: linear-gradient(to right, transparent, #f6f9ff 40%); }
+.timeline-row.meeting:hover .actions { background: linear-gradient(to right, transparent, #f0f5ff 40%); }
 
 .btn-icon {
   display: inline-flex;

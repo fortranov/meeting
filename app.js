@@ -1,4 +1,4 @@
-const VISIBLE_DAYS = 30;
+const VISIBLE_DAYS = 35;
 const weekdays  = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu  = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
@@ -340,7 +340,7 @@ function renderMonthRow(days, tpl) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-function colTemplate(n) { return `220px 110px 90px repeat(${n}, minmax(0, 1fr))`; }
+function colTemplate(n) { return `200px 100px 80px repeat(${n}, minmax(0, 1fr))`; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
 function toISO(date) { return typeof date === 'string' ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0, 10); }
