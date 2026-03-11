@@ -182,8 +182,8 @@ function meetingSaveAction(): void
     $date = trim((string)($payload['meeting_date'] ?? ''));
     $topic = trim((string)($payload['topic'] ?? ''));
 
-    if ($title === '' || $date === '' || $topic === '') {
-        jsonResponse(['error' => 'Заполните все поля заседания'], 422);
+    if ($title === '' || $date === '') {
+        jsonResponse(['error' => 'Заполните название и дату заседания'], 422);
     }
 
     if ($id) {
