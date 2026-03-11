@@ -8,6 +8,8 @@ let personOptions    = [];
 let timelineMeetings = [];
 let taskStatuses = [];
 let holidays = [];
+let taskConflicts = {};
+let conflictTaskId = null;
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -36,6 +38,11 @@ function bindEvents() {
   document.getElementById('saveTask').onclick         = saveTask;
   document.getElementById('deleteMeetingBtn').onclick = deleteMeeting;
   document.getElementById('deleteTaskBtn').onclick    = deleteTask;
+  document.getElementById('conflictSuppressBtn').onclick = () => {
+    if (conflictTaskId !== null) addSuppressed(conflictTaskId);
+    closeModal('conflictModal');
+    renderTimeline();
+  };
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => closeModal(btn.dataset.close)
   );
@@ -91,20 +98,31 @@ function renderTimeline() {
       ${days.map(renderDayHeader).join('')}
     </div>`;
 
-  const body = rows.map(r => `
+  const suppressed = getSuppressed();
+  taskConflicts = {};
+  rows.forEach(r => { if (r.conflicts && r.conflicts.length) taskConflicts[r.id] = r.conflicts; });
+
+  const body = rows.map(r => {
+    const hasConflict = r.type === 'task' && r.conflicts && r.conflicts.length > 0 && !suppressed.has(r.id);
+    const warnBtn = hasConflict ? `<button class="conflict-btn" data-task-id="${r.id}" title="Конфликт с расписанием">⚠</button>` : '';
+    return `
     <div class="timeline-row ${r.type}" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}">
-        <span title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</span>
+        <span title="${escapeHtml(r.title)}">${warnBtn}${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
       </div>
       <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
       <div class="timeline-cell left-col left-3">${r.status ? statusPill(r.status) : ''}</div>
       ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null)).join('')}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   timelineHeader.innerHTML = header;
   timelineTable.innerHTML  = body;
 
+  timelineTable.querySelectorAll('.conflict-btn').forEach(btn =>
+    btn.onclick = e => { e.stopPropagation(); openConflictModal(Number(btn.dataset.taskId)); }
+  );
   timelineTable.querySelectorAll('[data-action="edit-meeting"]').forEach(btn =>
     btn.onclick = () => openMeetingModal(Number(btn.dataset.id))
   );
@@ -127,6 +145,7 @@ function pushTaskRows(rows, task, meetingId, level) {
     status: task.status,
     level: level + 1,
     directionColor: task.direction_color || null,
+    conflicts: task.conflicts || [],
   });
   (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1));
 }
@@ -278,8 +297,13 @@ async function saveTask() {
   const res  = await fetch('api.php?action=task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);
+  const savedId = data.id;
   closeModal('taskModal');
   await loadTimeline();
+  const suppressed = getSuppressed();
+  if (taskConflicts[savedId] && taskConflicts[savedId].length > 0 && !suppressed.has(savedId)) {
+    openConflictModal(savedId);
+  }
 }
 
 async function deleteMeeting() {
@@ -369,6 +393,34 @@ function findTask(id, meetings) {
   }
   for (const m of meetings) { const f = walk(m.tasks || []); if (f) return f; }
   return null;
+}
+
+const SUPPRESSED_KEY = 'conflictSuppressed';
+
+function getSuppressed() {
+  try { return new Set(JSON.parse(localStorage.getItem(SUPPRESSED_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+
+function addSuppressed(taskId) {
+  const s = getSuppressed();
+  s.add(taskId);
+  localStorage.setItem(SUPPRESSED_KEY, JSON.stringify([...s]));
+}
+
+const EVENT_TYPE_LABELS = { vacation: 'Отпуск', study: 'Учёба' };
+
+function openConflictModal(taskId) {
+  conflictTaskId = taskId;
+  const conflicts = taskConflicts[taskId] || [];
+  document.getElementById('conflictList').innerHTML = conflicts.map(c =>
+    `<div class="conflict-row">
+      <span class="conflict-person">${escapeHtml(c.person)}</span>
+      <span class="conflict-type">${escapeHtml(EVENT_TYPE_LABELS[c.event_type] || c.event_type)}</span>
+      <span class="conflict-dates">${fmtDM(c.start)}–${fmtDM(c.end)}</span>
+    </div>`
+  ).join('');
+  document.getElementById('conflictModal').classList.remove('hidden');
 }
 
 const meetingId    = document.getElementById('meetingId');

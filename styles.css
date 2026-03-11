@@ -851,3 +851,59 @@ body {
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
+
+/* ─── Conflict warning button ─── */
+.conflict-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--warning);
+  font-size: 0.95rem;
+  padding: 0 4px 0 0;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.1s;
+}
+.conflict-btn:hover { color: #d97b00; }
+
+/* ─── Conflict modal ─── */
+.conflict-modal-title { color: #c47000; }
+.conflict-modal-desc { margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.conflict-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #ffe4aa;
+  border-radius: 8px;
+  background: #fffbf0;
+}
+.conflict-person { font-weight: 600; font-size: 0.88rem; }
+.conflict-type {
+  font-size: 0.78rem;
+  color: #b36200;
+  background: #fff0cc;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.conflict-dates { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+.btn-suppress {
+  background: #fff7e8;
+  color: #c47000;
+  border-color: #ffe4aa;
+}
+.btn-suppress:hover { background: #ffe4aa; color: #8a4800; border-color: #ffcc66; }

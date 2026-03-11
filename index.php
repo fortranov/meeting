@@ -83,6 +83,19 @@
   </div>
 </div>
 
+<div id="conflictModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 class="conflict-modal-title">&#9888; Конфликт с расписанием</h3>
+    <p class="conflict-modal-desc">У следующих сотрудников период задачи пересекается с событием:</p>
+    <div id="conflictList" class="conflict-list"></div>
+    <div class="modal-actions">
+      <button id="conflictSuppressBtn" class="btn-suppress">Больше не показывать</button>
+      <div style="flex:1"></div>
+      <button data-close="conflictModal">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
