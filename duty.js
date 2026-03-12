@@ -35,7 +35,10 @@ function escHtml(s = '') {
 async function init() {
   document.getElementById('prevMonth').onclick  = () => navigate(-1);
   document.getElementById('nextMonth').onclick  = () => navigate(1);
-  document.getElementById('statsBtn').onclick   = openStatsModal;
+  document.getElementById('statsBtn').onclick     = openStatsModal;
+  document.getElementById('createDocxBtn').onclick = () => {
+    window.location.href = `duty_docx.php?year=${curYear}&month=${curMonth}`;
+  };
   document.getElementById('closeStatsBtn').onclick = () =>
     document.getElementById('statsModal').classList.add('hidden');
   document.getElementById('deleteEventNo').onclick  = closeDelModal;

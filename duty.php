@@ -33,6 +33,7 @@ if (!$access['can_view']) accessDeniedPage();
         <div class="calendar-info"><h2 id="monthLabel"></h2></div>
         <button id="nextMonth">Вперёд →</button>
         <button id="statsBtn">Статистика</button>
+        <button id="createDocxBtn">Создать docx</button>
       </div>
     </div>
     <div class="duty-table-outer">
