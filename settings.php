@@ -84,6 +84,13 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="templateTasksList" class="settings-list"></div>
     </section>
 
+    <section class="settings-card settings-card-wide">
+      <div class="settings-card-header">
+        <h2>Цвета и размеры</h2>
+      </div>
+      <div id="colorSizeSettings" class="cs-grid"></div>
+    </section>
+
   </div>
 </main>
 
@@ -93,8 +100,8 @@ if (!$access['can_view']) accessDeniedPage();
     <h3 id="personModalTitle">Добавить сотрудника</h3>
     <input type="hidden" id="personId" />
     <div class="row2">
-      <label>Имя<input id="personFirstName" /></label>
-      <label>Фамилия<input id="personLastName" /></label>
+      <label>Фамилия<input id="personFirstName" /></label>
+      <label>Инициалы<input id="personLastName" /></label>
     </div>
     <label>Направление
       <select id="personDirection">

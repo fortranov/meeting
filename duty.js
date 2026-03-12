@@ -20,6 +20,7 @@ let holidays = [];
 let pending  = null; // { personId, type, startIso }
 let delId    = null;
 let hintEl   = null;
+let siteSettings = {};
 
 const todayISO = fmtISO(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
 
@@ -42,7 +43,7 @@ async function init() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { removeContextMenu(); cancelPending(); }
   });
-  await Promise.all([loadPersons(), loadEvents(), loadHolidays()]);
+  await Promise.all([loadPersons(), loadEvents(), loadHolidays(), loadSiteSettings()]);
   render();
 }
 
@@ -53,7 +54,18 @@ async function navigate(dir) {
   cancelPending();
   removeContextMenu();
   await loadEvents();
+  if (siteSettings.vacation_color) EVENT_CFG.vacation.bg = siteSettings.vacation_color;
   render();
+}
+
+async function loadSiteSettings() {
+  try {
+    const data = await (await fetch('api.php?action=site_settings')).json();
+    siteSettings = data.settings || {};
+    const root = document.documentElement.style;
+    if (siteSettings.weekend_color) root.setProperty('--weekend-bg', siteSettings.weekend_color);
+    if (siteSettings.vacation_color) EVENT_CFG.vacation.bg = siteSettings.vacation_color;
+  } catch {}
 }
 
 async function loadPersons() {

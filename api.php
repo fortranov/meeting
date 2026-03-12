@@ -717,7 +717,7 @@ function siteSettingsSaveAction(): void
 {
     $pdo     = db();
     $payload = getJsonPayload();
-    $allowed = ['ip_access_enabled'];
+    $allowed = ['ip_access_enabled', 'weekend_color', 'vacation_color', 'col_item_width', 'col_status_width', 'col_day_min_width'];
     foreach ($allowed as $key) {
         if (!array_key_exists($key, $payload)) continue;
         $pdo->prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (:k, :v)')

@@ -10,6 +10,7 @@ let taskStatuses = [];
 let holidays = [];
 let taskConflicts = {};
 let conflictTaskId = null;
+let siteSettings = {};
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -19,7 +20,19 @@ async function init() {
     document.getElementById('addMeetingBtn').classList.add('hidden');
   }
   bindEvents();
+  await loadSiteSettings();
   await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
+}
+
+async function loadSiteSettings() {
+  try {
+    const data = await (await fetch('api.php?action=site_settings')).json();
+    siteSettings = data.settings || {};
+    const root = document.documentElement.style;
+    if (siteSettings.weekend_color)  root.setProperty('--weekend-bg',   siteSettings.weekend_color);
+    if (siteSettings.col_item_width)  root.setProperty('--col-item-w',   siteSettings.col_item_width + 'px');
+    if (siteSettings.col_status_width) root.setProperty('--col-status-w', siteSettings.col_status_width + 'px');
+  } catch {}
 }
 
 async function loadHolidays() {
@@ -96,8 +109,8 @@ function renderTimeline() {
   const header = renderMonthRow(days, tpl) + `
     <div class="timeline-row header" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-1">Заседание / задача</div>
-      <div class="timeline-cell left-col left-2">Сроки</div>
-      <div class="timeline-cell left-col left-3">Статус</div>
+      <div class="timeline-cell left-col left-2">Статус</div>
+      <div class="timeline-cell left-col left-3">Сроки</div>
       ${days.map(renderDayHeader).join('')}
     </div>`;
 
@@ -114,8 +127,8 @@ function renderTimeline() {
         <span title="${escapeHtml(r.title)}">${warnBtn}${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
       </div>
-      <div class="timeline-cell left-col left-2">${formatPeriod(r.start, r.end)}</div>
-      <div class="timeline-cell left-col left-3">${r.status ? statusPill(r.status) : ''}</div>
+      <div class="timeline-cell left-col left-2">${r.status ? statusPill(r.status) : ''}</div>
+      <div class="timeline-cell left-col left-3">${formatPeriod(r.start, r.end)}</div>
       ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null)).join('')}
     </div>`;
   }).join('');
@@ -379,7 +392,13 @@ function renderMonthRow(days, tpl) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-function colTemplate(n) { return `200px 100px 80px repeat(${n}, minmax(0, 1fr))`; }
+function colTemplate(n) {
+  const itemW    = parseInt(siteSettings.col_item_width   || 200);
+  const statusW  = parseInt(siteSettings.col_status_width || 80);
+  const datesW   = 100;
+  const dayMinW  = parseInt(siteSettings.col_day_min_width || 0);
+  return `${itemW}px ${statusW}px ${datesW}px repeat(${n}, minmax(${dayMinW}px, 1fr))`;
+}
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
 function toISO(date) { return typeof date === 'string' ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0, 10); }

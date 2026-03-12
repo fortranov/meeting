@@ -3,6 +3,7 @@ let statuses       = [];
 let persons        = [];
 let templateTasks  = [];
 let holidays       = [];
+let colorSizeData  = {};
 
 const PALETTE = [
   '#ef4444','#f97316','#eab308','#84cc16',
@@ -579,6 +580,54 @@ async function loadSiteSettings() {
   const data = await api('site_settings');
   const settings = data.settings || {};
   document.getElementById('ipAccessEnabled').checked = settings['ip_access_enabled'] === '1';
+  colorSizeData = settings;
+  renderColorSizeSettings();
+}
+
+function renderColorSizeSettings() {
+  const s = colorSizeData;
+  const container = document.getElementById('colorSizeSettings');
+  container.innerHTML = `
+    <div class="cs-row">
+      <span class="cs-label">Цвет выходных дней (Главная + График дежурств)</span>
+      <input type="color" class="cs-color" id="csWeekendColor" value="${s.weekend_color || '#f5fcf5'}" title="Цвет выходных" />
+    </div>
+    <div class="cs-row">
+      <span class="cs-label">Цвет события «Отпуск» (График дежурств)</span>
+      <input type="color" class="cs-color" id="csVacationColor" value="${s.vacation_color || '#fef9c3'}" title="Цвет отпуска" />
+    </div>
+    <div class="cs-row">
+      <span class="cs-label">Ширина левого столбца таблицы (Главная)</span>
+      <input type="number" class="cs-number" id="csColItemWidth" value="${s.col_item_width || 200}" min="100" max="600" />
+      <span class="cs-unit">px</span>
+    </div>
+    <div class="cs-row">
+      <span class="cs-label">Ширина столбца «Статус» таблицы (Главная)</span>
+      <input type="number" class="cs-number" id="csColStatusWidth" value="${s.col_status_width || 80}" min="40" max="300" />
+      <span class="cs-unit">px</span>
+    </div>
+    <div class="cs-row">
+      <span class="cs-label">Минимальная ширина столбца дня в календаре (Главная)</span>
+      <input type="number" class="cs-number" id="csColDayMinWidth" value="${s.col_day_min_width || 0}" min="0" max="100" />
+      <span class="cs-unit">px</span>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn-add" id="saveColorSizeBtn">Сохранить</button>
+    </div>
+  `;
+  document.getElementById('saveColorSizeBtn').onclick = saveColorSizeSettings;
+}
+
+async function saveColorSizeSettings() {
+  const payload = {
+    weekend_color:     document.getElementById('csWeekendColor').value,
+    vacation_color:    document.getElementById('csVacationColor').value,
+    col_item_width:    document.getElementById('csColItemWidth').value,
+    col_status_width:  document.getElementById('csColStatusWidth').value,
+    col_day_min_width: document.getElementById('csColDayMinWidth').value,
+  };
+  await api('site_settings_save', payload);
+  colorSizeData = { ...colorSizeData, ...payload };
 }
 
 init();
