@@ -11,6 +11,9 @@ let holidays = [];
 let taskConflicts = {};
 let conflictTaskId = null;
 let siteSettings = {};
+let _dragTaskId = null;
+let _dragMeetingId = null;
+let _dragParentId = null;
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -108,6 +111,7 @@ function renderTimeline() {
 
   const header = renderMonthRow(days, tpl) + `
     <div class="timeline-row header" style="grid-template-columns:${tpl}">
+      <div class="timeline-cell left-col left-0 drag-col"></div>
       <div class="timeline-cell left-col left-1">Заседание / задача</div>
       <div class="timeline-cell left-col left-2">Статус</div>
       <div class="timeline-cell left-col left-3">Сроки</div>
@@ -118,11 +122,20 @@ function renderTimeline() {
   taskConflicts = {};
   rows.forEach(r => { if (r.conflicts && r.conflicts.length) taskConflicts[r.id] = r.conflicts; });
 
+  const canDrag = typeof PAGE_CAN_EDIT === 'undefined' || PAGE_CAN_EDIT;
+  const dragHandleSvg = `<svg viewBox="0 0 8 12" fill="currentColor" width="8" height="12"><circle cx="2.5" cy="2" r="1.2"/><circle cx="5.5" cy="2" r="1.2"/><circle cx="2.5" cy="6" r="1.2"/><circle cx="5.5" cy="6" r="1.2"/><circle cx="2.5" cy="10" r="1.2"/><circle cx="5.5" cy="10" r="1.2"/></svg>`;
   const body = rows.map(r => {
     const hasConflict = r.type === 'task' && r.conflicts && r.conflicts.length > 0 && !suppressed.has(r.id);
     const warnBtn = hasConflict ? `<button class="conflict-btn" data-task-id="${r.id}" title="Конфликт с расписанием">⚠</button>` : '';
+    const taskAttrs = r.type === 'task'
+      ? `data-task-id="${r.id}" data-meeting-id="${r.meetingId}" data-parent-id="${r.parentId ?? ''}"`
+      : '';
+    const dragCell = r.type === 'task' && canDrag
+      ? `<span class="drag-handle" draggable="true" title="Перетащить">${dragHandleSvg}</span>`
+      : '';
     return `
-    <div class="timeline-row ${r.type}" style="grid-template-columns:${tpl}">
+    <div class="timeline-row ${r.type}" ${taskAttrs} style="grid-template-columns:${tpl}">
+      <div class="timeline-cell left-col left-0 drag-col">${dragCell}</div>
       <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}">
         <span title="${escapeHtml(r.title)}">${warnBtn}${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
@@ -148,13 +161,15 @@ function renderTimeline() {
   timelineTable.querySelectorAll('[data-action="edit-task"]').forEach(btn =>
     btn.onclick = () => openTaskModal({ taskId: Number(btn.dataset.id), meetingId: Number(btn.dataset.meeting) })
   );
+  if (canDrag) setupDragDrop();
 }
 
-function pushTaskRows(rows, task, meetingId, level) {
+function pushTaskRows(rows, task, meetingId, level, parentId = null) {
   rows.push({
     type: 'task',
     id: task.id,
     meetingId,
+    parentId,
     title: task.title,
     start: task.start_date,
     end: task.end_date,
@@ -163,7 +178,7 @@ function pushTaskRows(rows, task, meetingId, level) {
     directionColor: task.direction_color || null,
     conflicts: task.conflicts || [],
   });
-  (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1));
+  (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1, task.id));
 }
 
 const addSvg  = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`;
@@ -373,6 +388,71 @@ function renderSelectedPersons() {
   });
 }
 
+function setupDragDrop() {
+  timelineTable.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.ondragstart = e => {
+      const row = handle.closest('[data-task-id]');
+      if (!row) return;
+      _dragTaskId   = Number(row.dataset.taskId);
+      _dragMeetingId = Number(row.dataset.meetingId);
+      _dragParentId  = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(_dragTaskId));
+      requestAnimationFrame(() => row.classList.add('dragging'));
+    };
+    handle.ondragend = () => {
+      _dragTaskId = null;
+      timelineTable.querySelectorAll('.dragging, .drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+    };
+  });
+
+  timelineTable.querySelectorAll('[data-task-id]').forEach(row => {
+    row.ondragover = e => {
+      if (_dragTaskId === null) return;
+      const targetId     = Number(row.dataset.taskId);
+      const targetParent = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
+      const targetMeeting = Number(row.dataset.meetingId);
+      if (targetMeeting !== _dragMeetingId) return;
+      if (String(targetParent) !== String(_dragParentId)) return;
+      if (targetId === _dragTaskId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      timelineTable.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      row.classList.add('drag-over');
+    };
+    row.ondragleave = e => {
+      if (!row.contains(e.relatedTarget)) row.classList.remove('drag-over');
+    };
+    row.ondrop = async e => {
+      e.preventDefault();
+      if (_dragTaskId === null) return;
+      const targetId     = Number(row.dataset.taskId);
+      const targetParent = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
+      const targetMeeting = Number(row.dataset.meetingId);
+      if (targetMeeting !== _dragMeetingId) return;
+      if (String(targetParent) !== String(_dragParentId)) return;
+      if (targetId === _dragTaskId) return;
+      row.classList.remove('drag-over');
+      const meeting = timelineMeetings.find(m => Number(m.id) === _dragMeetingId);
+      if (!meeting) return;
+      const siblings = _dragParentId !== null
+        ? (findTask(_dragParentId, [meeting])?.children || [])
+        : (meeting.tasks || []);
+      const fromIdx = siblings.findIndex(t => Number(t.id) === _dragTaskId);
+      const toIdx   = siblings.findIndex(t => Number(t.id) === targetId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const [moved] = siblings.splice(fromIdx, 1);
+      siblings.splice(toIdx, 0, moved);
+      renderTimeline();
+      await fetch('api.php?action=task_reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: siblings.map(t => Number(t.id)) }),
+      });
+    };
+  });
+}
+
 function renderMonthRow(days, tpl) {
   const groups = [];
   for (const d of days) {
@@ -386,18 +466,19 @@ function renderMonthRow(days, tpl) {
     `<div class="timeline-cell month-cell" style="grid-column:span ${g.count}">${monthsRu[g.m]} ${g.y}</div>`
   ).join('');
   return `<div class="timeline-row header month-row" style="grid-template-columns:${tpl}">
-    <div class="timeline-cell left-col month-left" style="grid-column:span 3"></div>
+    <div class="timeline-cell left-col month-left" style="grid-column:span 4"></div>
     ${cells}
   </div>`;
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function colTemplate(n) {
+  const dragW    = 28;
   const itemW    = parseInt(siteSettings.col_item_width   || 200);
   const statusW  = parseInt(siteSettings.col_status_width || 80);
   const datesW   = 100;
   const dayMinW  = parseInt(siteSettings.col_day_min_width || 0);
-  return `${itemW}px ${statusW}px ${datesW}px repeat(${n}, minmax(${dayMinW}px, 1fr))`;
+  return `${dragW}px ${itemW}px ${statusW}px ${datesW}px repeat(${n}, minmax(${dayMinW}px, 1fr))`;
 }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d; }
 function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }

@@ -76,6 +76,10 @@ try {
             requirePost();
             templateTaskReorderAction();
             break;
+        case 'task_reorder':
+            requirePost();
+            taskReorderAction();
+            break;
         case 'meeting_delete':
             requirePost();
             meetingDeleteAction();
@@ -144,7 +148,7 @@ function timelineAction(): void
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          GROUP BY t.id
-         ORDER BY t.start_date, t.id'
+         ORDER BY t.sort_order, t.start_date, t.id'
     )->fetchAll();
 
     // Conflict check: vacation/study overlapping task dates
@@ -283,7 +287,16 @@ function taskSaveAction(): void
         $stmt = $pdo->prepare('UPDATE task SET title=:title, start_date=:start_date, end_date=:end_date, status=:status, updated_at=CURRENT_TIMESTAMP WHERE id=:id');
         $stmt->execute([':title' => $title, ':start_date' => $start, ':end_date' => $end, ':status' => $status, ':id' => $id]);
     } else {
-        $stmt = $pdo->prepare('INSERT INTO task (meeting_id, parent_task_id, title, start_date, end_date, status) VALUES (:meeting_id,:parent_id,:title,:start_date,:end_date,:status)');
+        if ($parentId !== null) {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM task WHERE parent_task_id=:pid');
+            $sortStmt->execute([':pid' => $parentId]);
+        } else {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM task WHERE meeting_id=:mid AND parent_task_id IS NULL');
+            $sortStmt->execute([':mid' => $meetingId]);
+        }
+        $sortOrder = (int)($sortStmt->fetch()['next'] ?? 1);
+
+        $stmt = $pdo->prepare('INSERT INTO task (meeting_id, parent_task_id, title, start_date, end_date, status, sort_order) VALUES (:meeting_id,:parent_id,:title,:start_date,:end_date,:status,:sort_order)');
         $stmt->execute([
             ':meeting_id' => $meetingId,
             ':parent_id' => $parentId,
@@ -291,6 +304,7 @@ function taskSaveAction(): void
             ':start_date' => $start,
             ':end_date' => $end,
             ':status' => $status,
+            ':sort_order' => $sortOrder,
         ]);
         $id = (int)$pdo->lastInsertId();
     }
@@ -304,6 +318,16 @@ function taskSaveAction(): void
     }
 
     jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function taskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
 }
 
 function getJsonPayload(): array

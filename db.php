@@ -104,6 +104,9 @@ function migrateDatabase(PDO $pdo): void
     $dirCols = array_column($pdo->query("PRAGMA table_info(direction)")->fetchAll(), 'name');
     if (!in_array('color', $dirCols)) $pdo->exec("ALTER TABLE direction ADD COLUMN color TEXT");
 
+    $taskCols = array_column($pdo->query("PRAGMA table_info(task)")->fetchAll(), 'name');
+    if (!in_array('sort_order', $taskCols)) $pdo->exec("ALTER TABLE task ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS holiday (
         id   INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL UNIQUE
