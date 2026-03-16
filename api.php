@@ -242,7 +242,7 @@ function personsAction(): void
 
     $fields = 'id, first_name, last_name, full_name, birth_date, direction_id, sort_order,
                ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
-               page_settings_view, page_settings_edit';
+               page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit';
     if ($q === '') {
         $stmt = $pdo->query("SELECT $fields FROM person ORDER BY sort_order, id LIMIT 50");
     } else {
@@ -488,6 +488,8 @@ function personSaveAction(): void
     $pde = (int)!empty($payload['page_duty_edit']);
     $psv = (int)!empty($payload['page_settings_view']);
     $pse = (int)!empty($payload['page_settings_edit']);
+    $pvv = (int)!empty($payload['page_vacation_view']);
+    $pve = (int)!empty($payload['page_vacation_edit']);
 
     if ($fullName === '') jsonResponse(['error' => 'Имя не может быть пустым'], 422);
 
@@ -496,22 +498,24 @@ function personSaveAction(): void
             'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, birth_date=:bd,
              direction_id=:dir, ip=:ip, page_main_view=:pmv, page_main_edit=:pme,
              page_duty_view=:pdv, page_duty_edit=:pde, page_settings_view=:psv,
-             page_settings_edit=:pse WHERE id=:id'
+             page_settings_edit=:pse, page_vacation_view=:pvv, page_vacation_edit=:pve WHERE id=:id'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
             ':bd' => $birthDate, ':dir' => $dirId, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
-            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse, ':id' => $id]);
+            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
+            ':pvv' => $pvv, ':pve' => $pve, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
         $pdo->prepare(
             'INSERT INTO person (first_name, last_name, full_name, birth_date, direction_id, sort_order,
              ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
-             page_settings_view, page_settings_edit)
-             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse)'
+             page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit)
+             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse,:pvv,:pve)'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
             ':bd' => $birthDate, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
-            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse]);
+            ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
+            ':pvv' => $pvv, ':pve' => $pve]);
         $id = (int)$pdo->lastInsertId();
     }
     jsonResponse(['ok' => true, 'id' => $id]);

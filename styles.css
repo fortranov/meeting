@@ -214,7 +214,7 @@ body {
 }
 
 /* ─── Item cell ─── */
-.item-cell { position: relative; overflow: hidden; font-size: 0.84rem; }
+.item-cell { position: relative; font-size: 0.84rem; }
 .item-cell > span:first-of-type {
   flex: 1;
   min-width: 0;
@@ -223,6 +223,7 @@ body {
   white-space: nowrap;
 }
 .item-cell.lvl-0 { font-weight: 600; font-size: 0.86rem; }
+.item-cell.has-accordion { padding-left: 2px; }
 .item-cell.lvl-1 > span:first-of-type { padding-left: 14px; }
 .item-cell.lvl-1.has-accordion > span:first-of-type { padding-left: 4px; }
 .item-cell.lvl-2 > span:first-of-type { padding-left: 28px; color: #4d5a7a; font-size: 0.82rem; }
@@ -236,7 +237,7 @@ body {
   flex-shrink: 0;
   background: none;
   border: none;
-  padding: 0 3px;
+  padding: 0 1px;
   font-size: 10px;
   color: #7a8cb0;
   cursor: pointer;

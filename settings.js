@@ -1,3 +1,5 @@
+const PALETTE = ['#3b82f6','#f97316','#22c55e','#a855f7','#ec4899','#14b8a6','#f59e0b','#6366f1','#ef4444','#84cc16'];
+
 let directions     = [];
 let statuses       = [];
 let persons        = [];
@@ -259,7 +261,7 @@ function openPersonModal(id = null) {
   document.getElementById('personBirthDate').value  = '';
   document.getElementById('personDirection').value  = '';
   document.getElementById('personIp').value         = '';
-  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit']
+  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit']
     .forEach(eid => { document.getElementById(eid).checked = false; });
 
   if (id) {
@@ -276,6 +278,8 @@ function openPersonModal(id = null) {
       document.getElementById('permDutyEdit').checked  = !!Number(p.page_duty_edit);
       document.getElementById('permSettView').checked  = !!Number(p.page_settings_view);
       document.getElementById('permSettEdit').checked  = !!Number(p.page_settings_edit);
+      document.getElementById('permVacView').checked   = !!Number(p.page_vacation_view);
+      document.getElementById('permVacEdit').checked   = !!Number(p.page_vacation_edit);
     }
   }
 }
@@ -293,8 +297,10 @@ async function savePerson() {
     page_main_edit:     document.getElementById('permMainEdit').checked ? 1 : 0,
     page_duty_view:     document.getElementById('permDutyView').checked ? 1 : 0,
     page_duty_edit:     document.getElementById('permDutyEdit').checked ? 1 : 0,
-    page_settings_view: document.getElementById('permSettView').checked ? 1 : 0,
-    page_settings_edit: document.getElementById('permSettEdit').checked ? 1 : 0,
+    page_settings_view:  document.getElementById('permSettView').checked ? 1 : 0,
+    page_settings_edit:  document.getElementById('permSettEdit').checked ? 1 : 0,
+    page_vacation_view:  document.getElementById('permVacView').checked  ? 1 : 0,
+    page_vacation_edit:  document.getElementById('permVacEdit').checked  ? 1 : 0,
   };
   if (!payload.first_name && !payload.last_name) return alert('Введите имя или фамилию');
   await api('person_save', payload);

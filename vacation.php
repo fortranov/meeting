@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/access.php';
 db();
-$access = checkPageAccess('duty');
+$access = checkPageAccess('vacation');
 if (!$access['can_view']) accessDeniedPage();
 ?>
 <!DOCTYPE html>

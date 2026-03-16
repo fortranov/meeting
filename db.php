@@ -55,6 +55,8 @@ function migrateDatabase(PDO $pdo): void
     if (!in_array('page_settings_view', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_settings_view INTEGER NOT NULL DEFAULT 0");
     if (!in_array('page_settings_edit', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_settings_edit INTEGER NOT NULL DEFAULT 0");
     if (!in_array('birth_date',         $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN birth_date TEXT");
+    if (!in_array('page_vacation_view', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_vacation_view INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_vacation_edit', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_vacation_edit INTEGER NOT NULL DEFAULT 0");
 
     // Recreate task table if CHECK constraint present (remove it)
     $taskSql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='task'")->fetch()['sql'] ?? '';
