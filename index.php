@@ -103,6 +103,8 @@ if (!$access['can_view']) accessDeniedPage();
   </div>
 </div>
 
+<div id="dateRangePicker" class="date-picker hidden"></div>
+
 <script>const PAGE_CAN_EDIT = <?= $access['can_edit'] ? 'true' : 'false' ?>;</script>
 <script src="app.js"></script>
 </body>

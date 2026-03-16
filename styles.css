@@ -373,6 +373,76 @@ body {
   border-bottom-right-radius: 7px;
 }
 
+/* ─── Date range picker ─── */
+.date-cell-editable { cursor: pointer; }
+.date-cell-editable:hover { color: var(--primary); text-decoration: underline dotted; }
+
+.date-picker {
+  position: fixed;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  padding: 12px;
+  width: 252px;
+  user-select: none;
+}
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.dp-month-label { font-weight: 700; font-size: 0.87rem; }
+.dp-nav {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--text);
+}
+.dp-nav:hover { background: var(--accent); color: var(--primary); }
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.dp-day-hdr {
+  text-align: center;
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 3px 0 5px;
+}
+.dp-day {
+  text-align: center;
+  padding: 5px 0;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.dp-day:hover:not(.dp-range-start):not(.dp-range-end):not(.dp-range-single):not(.dp-in-range) {
+  background: var(--accent);
+}
+.dp-other-month { color: #c0c8d8; }
+.dp-today { font-weight: 700; color: var(--primary); }
+.dp-range-start  { background: var(--primary); color: #fff; border-radius: 4px 0 0 4px; }
+.dp-range-end    { background: var(--primary); color: #fff; border-radius: 0 4px 4px 0; }
+.dp-range-single { background: var(--primary); color: #fff; border-radius: 4px; }
+.dp-in-range     { background: var(--accent);  border-radius: 0; }
+.dp-footer {
+  margin-top: 8px;
+  font-size: 0.71rem;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
 /* ─── Modals ─── */
 .hidden { display: none !important; }
 

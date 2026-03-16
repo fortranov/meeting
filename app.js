@@ -16,6 +16,8 @@ let _dragMeetingId = null;
 let _dragParentId = null;
 let collapsedTasks = new Set();
 
+const _dp = { taskId: null, meetingId: null, start: null, picking: null, hoverDate: null, viewYear: null, viewMonth: null };
+
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
 
@@ -66,6 +68,13 @@ function bindEvents() {
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => closeModal(btn.dataset.close)
   );
+  document.addEventListener('click', e => {
+    const picker = document.getElementById('dateRangePicker');
+    if (picker && !picker.classList.contains('hidden') &&
+        !picker.contains(e.target) && !e.target.closest('.date-cell-editable')) {
+      closeDatePicker();
+    }
+  });
 
   const bodyWrap   = document.querySelector('.table-body-wrap');
   const headerWrap = document.querySelector('.table-header-wrap');
@@ -177,6 +186,21 @@ function renderTimeline() {
     btn.onclick = () => openTaskModal({ taskId: Number(btn.dataset.id), meetingId: Number(btn.dataset.meeting) })
   );
   if (canDrag) setupDragDrop();
+
+  if (canDrag) {
+    timelineTable.querySelectorAll('.timeline-row.task').forEach(row => {
+      const cell = row.querySelector('.left-3');
+      if (!cell) return;
+      cell.classList.add('date-cell-editable');
+      cell.addEventListener('click', () => {
+        const taskId   = Number(row.dataset.taskId);
+        const meetingId = Number(row.dataset.meetingId);
+        const task = findTask(taskId, timelineMeetings);
+        if (!task) return;
+        openDatePicker(taskId, task.start_date, task.end_date, cell);
+      });
+    });
+  }
 
   applyCollapsedState();
   timelineTable.querySelectorAll('.task-collapse-btn').forEach(btn => {
@@ -537,6 +561,142 @@ function renderMonthRow(days, tpl) {
     <div class="timeline-cell left-col month-left" style="grid-column:span 4"></div>
     ${cells}
   </div>`;
+}
+
+function openDatePicker(taskId, startISO, endISO, anchorEl) {
+  _dp.taskId    = taskId;
+  _dp.start     = startISO;
+  _dp.picking   = 'start';
+  _dp.hoverDate = null;
+  const d = new Date(startISO + 'T00:00:00');
+  _dp.viewYear  = d.getFullYear();
+  _dp.viewMonth = d.getMonth();
+  renderDatePickerFull();
+  positionDatePicker(anchorEl);
+  document.getElementById('dateRangePicker').classList.remove('hidden');
+}
+
+function closeDatePicker() {
+  document.getElementById('dateRangePicker').classList.add('hidden');
+  _dp.taskId = null;
+}
+
+function renderDatePickerFull() {
+  const picker = document.getElementById('dateRangePicker');
+  const year = _dp.viewYear, month = _dp.viewMonth;
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  const startWd  = (firstDay.getDay() + 6) % 7; // Mon=0
+  const today    = toISO(new Date());
+
+  const hdrs = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
+    .map(d => `<div class="dp-day-hdr">${d}</div>`).join('');
+
+  let cells = '';
+  for (let i = 0; i < startWd; i++) {
+    const dt = new Date(year, month, i - startWd + 1);
+    cells += `<div class="dp-day dp-other-month" data-date="${toISO(dt)}">${dt.getDate()}</div>`;
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells += `<div class="dp-day${iso === today ? ' dp-today' : ''}" data-date="${iso}">${d}</div>`;
+  }
+  const tail = 7 * Math.ceil((startWd + lastDay.getDate()) / 7) - startWd - lastDay.getDate();
+  for (let d = 1; d <= tail; d++) {
+    const dt = new Date(year, month + 1, d);
+    cells += `<div class="dp-day dp-other-month" data-date="${toISO(dt)}">${dt.getDate()}</div>`;
+  }
+
+  picker.innerHTML = `
+    <div class="dp-header">
+      <button class="dp-nav" id="dpPrev">‹</button>
+      <span class="dp-month-label">${monthsRu[month]} ${year}</span>
+      <button class="dp-nav" id="dpNext">›</button>
+    </div>
+    <div class="dp-grid">${hdrs}${cells}</div>
+    <div class="dp-footer">${_dp.picking === 'start' ? 'Начало периода' : 'Конец периода'}</div>`;
+
+  picker.querySelector('#dpPrev').addEventListener('click', e => {
+    e.stopPropagation();
+    if (--_dp.viewMonth < 0) { _dp.viewMonth = 11; _dp.viewYear--; }
+    renderDatePickerFull(); updateRangeHighlight();
+  });
+  picker.querySelector('#dpNext').addEventListener('click', e => {
+    e.stopPropagation();
+    if (++_dp.viewMonth > 11) { _dp.viewMonth = 0; _dp.viewYear++; }
+    renderDatePickerFull(); updateRangeHighlight();
+  });
+  picker.querySelector('.dp-grid').addEventListener('mouseleave', () => {
+    if (_dp.picking === 'end' && _dp.hoverDate) { _dp.hoverDate = null; updateRangeHighlight(); }
+  });
+  picker.querySelectorAll('.dp-day').forEach(cell => {
+    cell.addEventListener('mouseenter', () => {
+      if (_dp.picking === 'end') { _dp.hoverDate = cell.dataset.date; updateRangeHighlight(); }
+    });
+    cell.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = cell.dataset.date;
+      if (_dp.picking === 'start') {
+        _dp.start   = date;
+        _dp.picking = 'end';
+        picker.querySelector('.dp-footer').textContent = 'Конец периода';
+        updateRangeHighlight();
+      } else {
+        let [s, en] = _dp.start <= date ? [_dp.start, date] : [date, _dp.start];
+        const tid = _dp.taskId;
+        closeDatePicker();
+        saveDateRange(tid, s, en);
+      }
+    });
+  });
+  updateRangeHighlight();
+}
+
+function updateRangeHighlight() {
+  const picker = document.getElementById('dateRangePicker');
+  if (!picker) return;
+  const s = _dp.picking === 'start' ? null : _dp.start;
+  const e = _dp.picking === 'end'   ? (_dp.hoverDate || _dp.start) : null;
+  picker.querySelectorAll('.dp-day[data-date]').forEach(cell => {
+    const iso = cell.dataset.date;
+    cell.classList.remove('dp-range-start', 'dp-range-end', 'dp-in-range', 'dp-range-single');
+    if (!s) return;
+    const lo = s <= (e || s) ? s : (e || s);
+    const hi = s <= (e || s) ? (e || s) : s;
+    if (iso === lo && iso === hi) cell.classList.add('dp-range-single');
+    else if (iso === lo)          cell.classList.add('dp-range-start');
+    else if (iso === hi)          cell.classList.add('dp-range-end');
+    else if (iso > lo && iso < hi) cell.classList.add('dp-in-range');
+  });
+}
+
+function positionDatePicker(anchorEl) {
+  const picker = document.getElementById('dateRangePicker');
+  picker.style.visibility = 'hidden';
+  picker.classList.remove('hidden');
+  const rect = anchorEl.getBoundingClientRect();
+  const pw = picker.offsetWidth, ph = picker.offsetHeight;
+  picker.classList.add('hidden');
+  picker.style.visibility = '';
+  let top  = rect.bottom + 4;
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (left < 8) left = 8;
+  if (top + ph > window.innerHeight - 8) top = rect.top - ph - 4;
+  if (top < 8) top = 8;
+  picker.style.top  = top  + 'px';
+  picker.style.left = left + 'px';
+}
+
+async function saveDateRange(taskId, startDate, endDate) {
+  const res  = await fetch('api.php?action=task_dates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: taskId, start_date: startDate, end_date: endDate }),
+  });
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  await loadTimeline();
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }

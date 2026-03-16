@@ -88,6 +88,10 @@ try {
             requirePost();
             taskDeleteAction();
             break;
+        case 'task_dates':
+            requirePost();
+            taskDatesAction();
+            break;
         case 'holidays':
             holidaysAction();
             break;
@@ -587,6 +591,21 @@ function meetingDeleteAction(): void
     $id = (int)(getJsonPayload()['id'] ?? 0);
     if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
     db()->prepare('DELETE FROM meeting WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function taskDatesAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = (int)($payload['id'] ?? 0);
+    $start   = trim((string)($payload['start_date'] ?? ''));
+    $end     = trim((string)($payload['end_date'] ?? ''));
+    if ($id <= 0 || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Неверные данные'], 422);
+    }
+    $stmt = $pdo->prepare('UPDATE task SET start_date=:s, end_date=:e, updated_at=CURRENT_TIMESTAMP WHERE id=:id');
+    $stmt->execute([':s' => $start, ':e' => $end, ':id' => $id]);
     jsonResponse(['ok' => true]);
 }
 
