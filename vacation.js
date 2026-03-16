@@ -104,12 +104,6 @@ function renderTable() {
   // Header row
   let hHtml = `<div class="vac-row vac-header-row">`;
   hHtml += `<div class="vac-cell vac-person-cell vac-hdr-cell">Сотрудник</div>`;
-  for (let m = 1; m <= 12; m++) {
-    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}${meetingLines(m)}</div>`;
-  }
-  hHtml += `</div>`;
-  headerEl.innerHTML = hHtml;
-
   // Precompute meeting days per month for the current year
   const meetingDaysByMonth = new Map(); // month(1-12) -> Set of day numbers
   for (const mtg of meetings) {
@@ -119,14 +113,20 @@ function renderTable() {
     if (!meetingDaysByMonth.has(m)) meetingDaysByMonth.set(m, new Set());
     meetingDaysByMonth.get(m).add(d);
   }
-  function meetingLines(m) {
+  const meetingLines = m => {
     const dim  = daysInMonth(curYear, m);
     const days = meetingDaysByMonth.get(m) || new Set();
     return [...days].map(d => {
       const lp = ((d - 0.5) / dim * 100).toFixed(3);
       return `<div class="vac-meeting-line" style="left:${lp}%;background:${escHtml(meetingLineColor)}"></div>`;
     }).join('');
+  };
+
+  for (let m = 1; m <= 12; m++) {
+    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}${meetingLines(m)}</div>`;
   }
+  hHtml += `</div>`;
+  headerEl.innerHTML = hHtml;
 
   // Pre-compute which month holds the most days for each event (label goes there only)
   const evtLabelMonth = new Map();
