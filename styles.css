@@ -211,7 +211,7 @@ body {
 
 /* ─── Item cell ─── */
 .item-cell { position: relative; overflow: hidden; font-size: 0.84rem; }
-.item-cell > span:first-child {
+.item-cell > span:first-of-type {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -219,9 +219,31 @@ body {
   white-space: nowrap;
 }
 .item-cell.lvl-0 { font-weight: 600; font-size: 0.86rem; }
-.item-cell.lvl-1 > span:first-child { padding-left: 14px; }
-.item-cell.lvl-2 > span:first-child { padding-left: 28px; color: #4d5a7a; font-size: 0.82rem; }
-.item-cell.lvl-3 > span:first-child { padding-left: 42px; color: #4d5a7a; font-size: 0.82rem; }
+.item-cell.lvl-1 > span:first-of-type { padding-left: 14px; }
+.item-cell.lvl-1.has-accordion > span:first-of-type { padding-left: 4px; }
+.item-cell.lvl-2 > span:first-of-type { padding-left: 28px; color: #4d5a7a; font-size: 0.82rem; }
+.item-cell.lvl-3 > span:first-of-type { padding-left: 42px; color: #4d5a7a; font-size: 0.82rem; }
+
+/* ─── Accordion toggle buttons ─── */
+.task-collapse-btn, .meeting-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0 3px;
+  font-size: 10px;
+  color: #7a8cb0;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s;
+  line-height: 1;
+}
+.task-collapse-btn:hover, .meeting-collapse-btn:hover {
+  opacity: 1;
+  color: var(--primary);
+}
 
 /* ─── Action buttons (appear on row hover, overlay title) ─── */
 .actions {

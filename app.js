@@ -14,6 +14,7 @@ let siteSettings = {};
 let _dragTaskId = null;
 let _dragMeetingId = null;
 let _dragParentId = null;
+let collapsedTasks = new Set();
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -118,6 +119,11 @@ function renderTimeline() {
       ${days.map(renderDayHeader).join('')}
     </div>`;
 
+  const meetingsWithAccordions = new Set();
+  rows.forEach(r => {
+    if (r.type === 'task' && r.level === 1 && r.hasChildren) meetingsWithAccordions.add(r.meetingId);
+  });
+
   const suppressed = getSuppressed();
   taskConflicts = {};
   rows.forEach(r => { if (r.conflicts && r.conflicts.length) taskConflicts[r.id] = r.conflicts; });
@@ -127,16 +133,25 @@ function renderTimeline() {
   const body = rows.map(r => {
     const hasConflict = r.type === 'task' && r.conflicts && r.conflicts.length > 0 && !suppressed.has(r.id);
     const warnBtn = hasConflict ? `<button class="conflict-btn" data-task-id="${r.id}" title="Конфликт с расписанием">⚠</button>` : '';
+    const toplevelAttr = r.type === 'task' && r.level >= 2 ? ` data-toplevel-task-id="${r.topLevelTaskId}"` : '';
     const taskAttrs = r.type === 'task'
-      ? `data-task-id="${r.id}" data-meeting-id="${r.meetingId}" data-parent-id="${r.parentId ?? ''}"`
+      ? `data-task-id="${r.id}" data-meeting-id="${r.meetingId}" data-parent-id="${r.parentId ?? ''}"${toplevelAttr}`
       : '';
     const dragCell = r.type === 'task' && canDrag
       ? `<span class="drag-handle" draggable="true" title="Перетащить">${dragHandleSvg}</span>`
       : '';
+    const accordionBtn = r.type === 'task' && r.level === 1 && r.hasChildren
+      ? `<button class="task-collapse-btn" data-task-id="${r.id}" data-meeting-id="${r.meetingId}" title="Свернуть/развернуть подзадачи">▼</button>`
+      : '';
+    const meetingBtn = r.type === 'meeting' && meetingsWithAccordions.has(r.meetingId)
+      ? `<button class="meeting-collapse-btn" data-meeting-id="${r.meetingId}" title="Свернуть/развернуть все">▼</button>`
+      : '';
+    const hasAccordion = accordionBtn !== '' || meetingBtn !== '';
     return `
     <div class="timeline-row ${r.type}" ${taskAttrs} style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-0 drag-col">${dragCell}</div>
-      <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}">
+      <div class="timeline-cell left-col left-1 item-cell lvl-${r.level}${hasAccordion ? ' has-accordion' : ''}">
+        ${r.type === 'meeting' ? meetingBtn : accordionBtn}
         <span title="${escapeHtml(r.title)}">${warnBtn}${escapeHtml(r.title)}</span>
         <span class="actions">${renderActions(r)}</span>
       </div>
@@ -162,23 +177,63 @@ function renderTimeline() {
     btn.onclick = () => openTaskModal({ taskId: Number(btn.dataset.id), meetingId: Number(btn.dataset.meeting) })
   );
   if (canDrag) setupDragDrop();
+
+  applyCollapsedState();
+  timelineTable.querySelectorAll('.task-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const tid = Number(btn.dataset.taskId);
+      if (collapsedTasks.has(tid)) collapsedTasks.delete(tid);
+      else collapsedTasks.add(tid);
+      applyCollapsedState();
+    });
+  });
+  timelineTable.querySelectorAll('.meeting-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const mid = Number(btn.dataset.meetingId);
+      const taskBtns = timelineTable.querySelectorAll(`.task-collapse-btn[data-meeting-id="${mid}"]`);
+      const taskIds = Array.from(taskBtns).map(b => Number(b.dataset.taskId));
+      const allCollapsed = taskIds.length > 0 && taskIds.every(id => collapsedTasks.has(id));
+      taskIds.forEach(id => allCollapsed ? collapsedTasks.delete(id) : collapsedTasks.add(id));
+      applyCollapsedState();
+    });
+  });
 }
 
-function pushTaskRows(rows, task, meetingId, level, parentId = null) {
+function pushTaskRows(rows, task, meetingId, level, parentId = null, topLevelTaskId = null) {
+  const myTopLevelId = level === 0 ? task.id : topLevelTaskId;
   rows.push({
     type: 'task',
     id: task.id,
     meetingId,
     parentId,
+    topLevelTaskId: myTopLevelId,
     title: task.title,
     start: task.start_date,
     end: task.end_date,
     status: task.status,
     level: level + 1,
+    hasChildren: (task.children || []).length > 0,
     directionColor: task.direction_color || null,
     conflicts: task.conflicts || [],
   });
-  (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1, task.id));
+  (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1, task.id, myTopLevelId));
+}
+
+function applyCollapsedState() {
+  timelineTable.querySelectorAll('.timeline-row.task[data-toplevel-task-id]').forEach(row => {
+    row.style.display = collapsedTasks.has(Number(row.dataset.toplevelTaskId)) ? 'none' : '';
+  });
+  timelineTable.querySelectorAll('.task-collapse-btn').forEach(btn => {
+    btn.textContent = collapsedTasks.has(Number(btn.dataset.taskId)) ? '▶' : '▼';
+  });
+  timelineTable.querySelectorAll('.meeting-collapse-btn').forEach(btn => {
+    const mid = Number(btn.dataset.meetingId);
+    const taskBtns = timelineTable.querySelectorAll(`.task-collapse-btn[data-meeting-id="${mid}"]`);
+    const taskIds = Array.from(taskBtns).map(b => Number(b.dataset.taskId));
+    btn.textContent = taskIds.length > 0 && taskIds.every(id => collapsedTasks.has(id)) ? '▶' : '▼';
+  });
 }
 
 const addSvg  = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>`;
