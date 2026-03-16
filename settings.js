@@ -56,6 +56,9 @@ function bindEvents() {
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => document.getElementById(btn.dataset.close).classList.add('hidden')
   );
+  document.querySelectorAll('.modal').forEach(modal =>
+    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); })
+  );
 }
 
 // ─── Directions ───────────────────────────────────────────

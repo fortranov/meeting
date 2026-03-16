@@ -71,6 +71,9 @@ function bindEvents() {
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => closeModal(btn.dataset.close)
   );
+  document.querySelectorAll('.modal').forEach(modal =>
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal.id); })
+  );
   document.addEventListener('click', e => {
     const picker = document.getElementById('dateRangePicker');
     if (picker && !picker.classList.contains('hidden') &&
