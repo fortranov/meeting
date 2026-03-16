@@ -277,7 +277,7 @@ function renderDatePicker() {
 
   picker.querySelectorAll('.dp-day:not(.dp-other-month)').forEach(day => {
     day.addEventListener('mouseover', () => {
-      if (_dp.phase === 'end') { _dp.hoverDate = day.dataset.iso; renderDatePicker(); }
+      if (_dp.phase === 'end') { _dp.hoverDate = day.dataset.iso; updateDayHighlights(); }
     });
     day.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -295,6 +295,27 @@ function renderDatePicker() {
 
   const saveBtn = document.getElementById('dpSaveBtn');
   if (saveBtn) saveBtn.addEventListener('click', ev => { ev.stopPropagation(); saveDateRange(); });
+}
+
+function updateDayHighlights() {
+  const picker = document.getElementById('vacDatePicker');
+  if (!picker) return;
+  const s = _dp.start;
+  const e = _dp.end || _dp.hoverDate;
+  picker.querySelectorAll('.dp-day[data-iso]').forEach(day => {
+    const iso = day.dataset.iso;
+    day.classList.remove('dp-range-start', 'dp-range-end', 'dp-range-single', 'dp-in-range');
+    if (s && e) {
+      const lo = s <= e ? s : e;
+      const hi = s <= e ? e : s;
+      if (iso === lo && iso === hi)   day.classList.add('dp-range-single');
+      else if (iso === lo)            day.classList.add('dp-range-start');
+      else if (iso === hi)            day.classList.add('dp-range-end');
+      else if (iso > lo && iso < hi)  day.classList.add('dp-in-range');
+    } else if (s && iso === s) {
+      day.classList.add('dp-range-single');
+    }
+  });
 }
 
 function positionDatePicker(anchorEl) {
