@@ -5,14 +5,6 @@ let templateTasks  = [];
 let holidays       = [];
 let colorSizeData  = {};
 
-const PALETTE = [
-  '#ef4444','#f97316','#eab308','#84cc16',
-  '#22c55e','#10b981','#14b8a6','#06b6d4',
-  '#0ea5e9','#3b82f6','#6366f1','#8b5cf6',
-  '#a855f7','#ec4899','#f43f5e','#64748b',
-  '#fca5a5','#fde68a','#bbf7d0','#bfdbfe',
-  '#ddd6fe','#fbcfe8','#fed7aa','#d1fae5',
-];
 
 async function init() {
   bindEvents();
@@ -77,15 +69,19 @@ function renderDirections() {
   }
   list.innerHTML = directions.map(d => `
     <div class="setting-item" data-id="${d.id}">
-      <button class="color-swatch" data-id="${d.id}" data-type="direction" style="background:${d.color || '#e2e8f0'}" title="Выбрать цвет"></button>
+      <input type="color" class="cs-color" data-id="${d.id}" value="${d.color || '#e2e8f0'}" title="Выбрать цвет" />
       <span class="item-name" contenteditable="true" data-id="${d.id}" data-type="direction">${escHtml(d.name)}</span>
       <button class="btn-icon-del" data-id="${d.id}" data-type="direction" title="Удалить">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
       </button>
     </div>`).join('');
 
-  list.querySelectorAll('.color-swatch[data-type="direction"]').forEach(btn =>
-    btn.onclick = e => openDirectionColorPicker(e, Number(btn.dataset.id))
+  list.querySelectorAll('input[type="color"]').forEach(input =>
+    input.onchange = async () => {
+      const id = Number(input.dataset.id), color = input.value;
+      await api('direction_save', { id, color });
+      directions = directions.map(d => d.id === id ? { ...d, color } : d);
+    }
   );
   list.querySelectorAll('.item-name[data-type="direction"]').forEach(el => {
     el.onblur = () => renameDirection(Number(el.dataset.id), el.textContent.trim());
@@ -141,7 +137,7 @@ function renderStatuses() {
   list.innerHTML = statuses.map((s, i) => `
     <div class="setting-item" data-id="${s.id}" draggable="true">
       <span class="drag-handle" title="Перетащить">⠿</span>
-      <button class="color-swatch" data-id="${s.id}" style="background:${s.color || '#e2e8f0'}" title="Выбрать цвет"></button>
+      <input type="color" class="cs-color" data-id="${s.id}" value="${s.color || '#e2e8f0'}" title="Выбрать цвет" />
       <span class="item-name" contenteditable="true" data-id="${s.id}" data-type="status">${escHtml(s.name)}</span>
       <div class="item-actions">
         <button class="btn-icon-sm ${i === 0 ? 'disabled' : ''}" data-dir="up" data-id="${s.id}" title="Вверх">↑</button>
@@ -152,8 +148,12 @@ function renderStatuses() {
       </div>
     </div>`).join('');
 
-  list.querySelectorAll('.color-swatch[data-id]').forEach(btn =>
-    btn.onclick = e => openColorPicker(e, Number(btn.dataset.id))
+  list.querySelectorAll('input[type="color"]').forEach(input =>
+    input.onchange = async () => {
+      const id = Number(input.dataset.id), color = input.value;
+      await api('status_save', { id, color });
+      statuses = statuses.map(s => s.id === id ? { ...s, color } : s);
+    }
   );
   list.querySelectorAll('.item-name[data-type="status"]').forEach(el => {
     el.onblur = () => renameStatus(Number(el.dataset.id), el.textContent.trim());
@@ -466,65 +466,6 @@ async function deleteHoliday(id) {
   await loadHolidays();
 }
 
-function openColorPicker(e, statusId) {
-  e.stopPropagation();
-  document.querySelectorAll('.color-picker-popup').forEach(p => p.remove());
-
-  const btn   = e.currentTarget;
-  const popup = document.createElement('div');
-  popup.className = 'color-picker-popup';
-  popup.innerHTML =
-    PALETTE.map(c => `<button class="palette-swatch" style="background:${c}" data-color="${c}" title="${c}"></button>`).join('') +
-    `<button class="palette-swatch palette-none" data-color="" title="Без цвета"></button>`;
-
-  document.body.appendChild(popup);
-  const rect = btn.getBoundingClientRect();
-  popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  popup.style.left = (rect.left  + window.scrollX) + 'px';
-
-  popup.querySelectorAll('.palette-swatch').forEach(sw => {
-    sw.onclick = async e2 => {
-      e2.stopPropagation();
-      const color = sw.dataset.color || null;
-      await api('status_save', { id: statusId, color });
-      statuses = statuses.map(s => s.id === statusId ? { ...s, color } : s);
-      btn.style.background = color || '#e2e8f0';
-      popup.remove();
-    };
-  });
-
-  setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
-}
-
-function openDirectionColorPicker(e, directionId) {
-  e.stopPropagation();
-  document.querySelectorAll('.color-picker-popup').forEach(p => p.remove());
-
-  const btn   = e.currentTarget;
-  const popup = document.createElement('div');
-  popup.className = 'color-picker-popup';
-  popup.innerHTML =
-    PALETTE.map(c => `<button class="palette-swatch" style="background:${c}" data-color="${c}" title="${c}"></button>`).join('') +
-    `<button class="palette-swatch palette-none" data-color="" title="Без цвета"></button>`;
-
-  document.body.appendChild(popup);
-  const rect = btn.getBoundingClientRect();
-  popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
-  popup.style.left = (rect.left  + window.scrollX) + 'px';
-
-  popup.querySelectorAll('.palette-swatch').forEach(sw => {
-    sw.onclick = async e2 => {
-      e2.stopPropagation();
-      const color = sw.dataset.color || null;
-      await api('direction_save', { id: directionId, color });
-      directions = directions.map(d => d.id === directionId ? { ...d, color } : d);
-      btn.style.background = color || '#e2e8f0';
-      popup.remove();
-    };
-  });
-
-  setTimeout(() => document.addEventListener('click', () => popup.remove(), { once: true }), 0);
-}
 
 // ─── Drag & Drop ─────────────────────────────────────────
 function setupDrag(list, items, reorderAction, onDone) {
