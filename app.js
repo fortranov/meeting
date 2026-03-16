@@ -724,7 +724,7 @@ function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() +
 function startOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
 function toISO(date) { if (typeof date === 'string') return date; return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
 function fmtDM(iso) { const d = new Date(iso + 'T00:00:00'); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`; }
-function formatPeriod(s, e) { return s === e ? fmtDM(s) : `${fmtDM(s)}–${fmtDM(e)}`; }
+function formatPeriod(s, e) { return s === e ? fmtDM(s) : `${fmtDM(s)} – ${fmtDM(e)}`; }
 function escapeHtml(s = '') { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function findTask(id, meetings) {
   function walk(tasks) {
