@@ -33,6 +33,11 @@ function fmtDisplay(iso) {
   const [y, m, d] = iso.split('-');
   return `${Number(d)}.${Number(m)}.${y}`;
 }
+function fmtShort(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  return `${Number(d)}.${Number(m)}`;
+}
 
 async function init() {
   document.getElementById('prevYear').onclick = () => navigate(-1);
@@ -127,11 +132,15 @@ function renderTable() {
         const tt = evt.start_date === evt.end_date
           ? fmtDisplay(evt.start_date)
           : `${fmtDisplay(evt.start_date)} — ${fmtDisplay(evt.end_date)}`;
+        const label = evt.start_date === evt.end_date
+          ? fmtShort(evt.start_date)
+          : `${fmtShort(evt.start_date)} — ${fmtShort(evt.end_date)}`;
         bHtml += `<div class="vac-event"
           style="left:${lp}%;width:${wp}%;background:${escHtml(vacColor)}"
           data-eid="${evt.id}" data-pid="${p.id}"
           data-start="${evt.start_date}" data-end="${evt.end_date}"
           title="${escHtml(tt)}">`;
+        bHtml += `<span class="vac-event-label">${escHtml(label)}</span>`;
         if (canEdit) {
           bHtml += `<div class="vac-event-actions">`;
           bHtml += `<button class="vac-event-edit" data-eid="${evt.id}" data-pid="${p.id}" data-start="${evt.start_date}" data-end="${evt.end_date}" title="Редактировать">✎</button>`;

@@ -1249,6 +1249,18 @@ body {
 }
 .vac-event:hover { filter: brightness(0.88); z-index: 1; overflow: visible; }
 
+.vac-event-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b4400;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  pointer-events: none;
+}
+
 .vac-event-actions {
   display: none;
   position: absolute;
