@@ -354,6 +354,7 @@ body {
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.13);
 }
 .modal-box h3 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+#taskModal .modal-box { min-height: 540px; }
 
 .modal-box label {
   display: flex;
@@ -424,8 +425,13 @@ body {
 .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 /* ─── Person search ─── */
-.assignee-box { display: flex; flex-direction: column; gap: 6px; }
+.assignee-box { display: flex; flex-direction: column; gap: 6px; position: relative; min-height: 170px; }
 .dropdown {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  z-index: 100;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);

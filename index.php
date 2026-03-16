@@ -77,7 +77,7 @@ if (!$access['can_view']) accessDeniedPage();
     </label>
     <label>Ответственные</label>
     <div class="assignee-box">
-      <input id="personSearch" placeholder="Поиск сотрудника..." />
+      <input id="personSearch" placeholder="Поиск сотрудника..." autocomplete="new-password" />
       <div id="personDropdown" class="dropdown"></div>
       <div id="selectedPersons" class="selected-persons"></div>
     </div>
