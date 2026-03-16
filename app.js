@@ -357,6 +357,19 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
         renderSelectedPersons();
       }
     }
+  } else if (parentTaskId) {
+    const parent = findTask(Number(parentTaskId), timelineMeetings);
+    if (parent) {
+      taskStart.value = parent.start_date;
+      taskEnd.value   = parent.end_date;
+      if (parent.person_ids) {
+        const ids = parent.person_ids.split(',').map(Number).filter(Boolean);
+        selectedPersons = ids.map(pid => {
+          return personOptions.find(p => Number(p.id) === pid) || { id: pid, full_name: '?' };
+        });
+        renderSelectedPersons();
+      }
+    }
   }
 }
 
