@@ -19,7 +19,7 @@ if (!$access['can_view']) accessDeniedPage();
 <header class="top-nav">
   <div class="brand">Новый Аналитический Комплекс</div>
   <nav>
-    <a href="index.php">Главная</a>
+    <a href="index.php">План заседаний</a>
     <a href="duty.php" class="active">График дежурств</a>
   </nav>
   <a href="settings.php" class="nav-settings">Настройки</a>

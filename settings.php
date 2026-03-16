@@ -19,7 +19,7 @@ if (!$access['can_view']) accessDeniedPage();
 <header class="top-nav">
   <div class="brand">Новый Аналитический Комплекс</div>
   <nav>
-    <a href="index.php">Главная</a>
+    <a href="index.php">План заседаний</a>
     <a href="duty.php">График дежурств</a>
   </nav>
   <a href="settings.php" class="active nav-settings">Настройки</a>
@@ -118,7 +118,7 @@ if (!$access['can_view']) accessDeniedPage();
         </thead>
         <tbody>
           <tr>
-            <td>Главная</td>
+            <td>План заседаний</td>
             <td><input type="checkbox" id="permMainView" /></td>
             <td><input type="checkbox" id="permMainEdit" /></td>
           </tr>
