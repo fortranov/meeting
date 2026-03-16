@@ -18,16 +18,17 @@ if (!$access['can_view']) accessDeniedPage();
 <body>
 <header class="top-nav">
   <div class="brand">Новый Аналитический Комплекс</div>
-  <nav><a href="index.php">Главная</a><a href="duty.php">График дежурств</a><a href="settings.php">Настройки</a></nav>
+  <nav><a href="index.php">Главная</a><a href="duty.php">График дежурств</a></nav>
+  <a href="settings.php" class="nav-settings">Настройки</a>
 </header>
 <main class="page">
   <section class="plan-board">
     <div class="board-controls">
       <h1>План заседаний и задач</h1>
       <div class="board-nav">
-        <button id="addMeetingBtn">+ Заседание</button>
         <button id="prevWeek">← Назад</button>
         <button id="nextWeek">Вперёд →</button>
+        <button id="addMeetingBtn">+ Заседание</button>
       </div>
     </div>
     <div class="table-outer">

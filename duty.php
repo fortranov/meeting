@@ -21,8 +21,8 @@ if (!$access['can_view']) accessDeniedPage();
   <nav>
     <a href="index.php">Главная</a>
     <a href="duty.php" class="active">График дежурств</a>
-    <a href="settings.php">Настройки</a>
   </nav>
+  <a href="settings.php" class="nav-settings">Настройки</a>
 </header>
 <main class="page">
   <section class="plan-board">
