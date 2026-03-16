@@ -35,7 +35,8 @@ async function loadSiteSettings() {
     const data = await (await fetch('api.php?action=site_settings')).json();
     siteSettings = data.settings || {};
     const root = document.documentElement.style;
-    if (siteSettings.weekend_color)  root.setProperty('--weekend-bg',   siteSettings.weekend_color);
+    if (siteSettings.weekend_color)   root.setProperty('--weekend-bg',    siteSettings.weekend_color);
+    if (siteSettings.today_col_color) root.setProperty('--today-col-bg', siteSettings.today_col_color);
     if (siteSettings.col_item_width)  root.setProperty('--col-item-w',   siteSettings.col_item_width + 'px');
     if (siteSettings.col_status_width) root.setProperty('--col-status-w', siteSettings.col_status_width + 'px');
   } catch {}
@@ -294,7 +295,8 @@ function isDoneStatus(status) {
 function renderRangeCell(day, start, end, status = '', directionColor = null) {
   const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d = toISO(day);
-  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${weekend}"></div>`;
+  const isToday = d === toISO(new Date()) ? 'today' : '';
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   let cellStyle = '';
   let fillStyle = '';

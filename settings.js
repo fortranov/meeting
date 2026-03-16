@@ -593,6 +593,10 @@ function renderColorSizeSettings() {
       <input type="color" class="cs-color" id="csWeekendColor" value="${s.weekend_color || '#f5fcf5'}" title="Цвет выходных" />
     </div>
     <div class="cs-row">
+      <span class="cs-label">Цвет столбца текущего дня (Главная)</span>
+      <input type="color" class="cs-color" id="csTodayColColor" value="${s.today_col_color || '#eef3ff'}" title="Цвет текущего дня" />
+    </div>
+    <div class="cs-row">
       <span class="cs-label">Цвет события «Отпуск» (График дежурств)</span>
       <input type="color" class="cs-color" id="csVacationColor" value="${s.vacation_color || '#fef9c3'}" title="Цвет отпуска" />
     </div>
@@ -621,6 +625,7 @@ function renderColorSizeSettings() {
 async function saveColorSizeSettings() {
   const payload = {
     weekend_color:     document.getElementById('csWeekendColor').value,
+    today_col_color:   document.getElementById('csTodayColColor').value,
     vacation_color:    document.getElementById('csVacationColor').value,
     col_item_width:    document.getElementById('csColItemWidth').value,
     col_status_width:  document.getElementById('csColStatusWidth').value,

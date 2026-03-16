@@ -10,6 +10,7 @@
   --danger: #eb5757;
   --border: #dbe2f2;
   --weekend-bg: #f5fcf5;
+  --today-col-bg: #eef3ff;
   --col-drag-w: 28px;
   --col-item-w: 200px;
   --col-status-w: 80px;
@@ -339,8 +340,9 @@ body {
   color: var(--text);
 }
 .day-header.weekend, .day-cell.weekend { background: var(--weekend-bg, #f5fcf5); }
-.day-header.today { background: #eef3ff; box-shadow: inset 0 -2px 0 var(--primary); }
+.day-header.today { background: var(--today-col-bg); box-shadow: inset 0 -2px 0 var(--primary); }
 .day-header.today .date { color: var(--primary); }
+.day-cell.today { background: var(--today-col-bg); }
 
 /* ─── Day cells ─── */
 .day-cell { justify-content: center; padding: 0; }
