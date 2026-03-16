@@ -685,7 +685,9 @@ body {
   .settings-card-wide { grid-column: auto; }
 }
 
-.settings-list { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.settings-list { display: flex; flex-direction: column; gap: 4px; }
+
 .empty-hint { padding: 16px 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
 
 .setting-item {
