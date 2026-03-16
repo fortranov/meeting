@@ -180,7 +180,6 @@ body {
 
 /* ─── Sticky left cols ─── */
 .left-col { position: sticky; left: 0; z-index: 10; background: inherit; }
-.left-1 { left: var(--col-drag-w, 28px); }
 .left-2 { left: calc(var(--col-drag-w, 28px) + var(--col-item-w, 200px)); }
 .left-3 { left: calc(var(--col-drag-w, 28px) + var(--col-item-w, 200px) + var(--col-status-w, 80px)); font-size: 0.72rem; white-space: nowrap; padding-left: 4px; padding-right: 4px; justify-content: center; }
 
