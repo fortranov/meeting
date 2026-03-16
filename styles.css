@@ -1086,9 +1086,25 @@ body {
 }
 
 /* ─── Duty stats modal ─── */
-.stats-modal-box {
-  width: 720px;
+.stats-modal-box { width: 720px; }
+.stats-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
+.stats-modal-header h3 { margin: 0; }
+.stats-year-select {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  cursor: pointer;
+  outline: none;
+}
+.stats-year-select:focus { border-color: var(--primary); }
 .stats-table-wrap {
   overflow-x: auto;
   overflow-y: auto;

@@ -49,7 +49,10 @@ if (!$access['can_view']) accessDeniedPage();
 
 <div id="statsModal" class="modal hidden">
   <div class="modal-box stats-modal-box">
-    <h3>Статистика дежурств</h3>
+    <div class="stats-modal-header">
+      <h3>Статистика дежурств</h3>
+      <select id="statsYearSelect" class="stats-year-select"></select>
+    </div>
     <div class="stats-table-wrap" id="statsTableWrap"></div>
     <div class="modal-actions">
       <div style="flex:1"></div>

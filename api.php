@@ -117,6 +117,9 @@ try {
         case 'duty_stats':
             dutyStatsAction();
             break;
+        case 'duty_stats_years':
+            dutyStatsYearsAction();
+            break;
         case 'site_settings':
             siteSettingsAction();
             break;
@@ -701,24 +704,40 @@ function dutyEventDeleteAction(): void
     jsonResponse(['ok' => true]);
 }
 
+function dutyStatsYearsAction(): void
+{
+    $rows  = db()->query(
+        "SELECT DISTINCT strftime('%Y', start_date) AS y FROM duty_event WHERE event_type='duty' ORDER BY y"
+    )->fetchAll();
+    $years = array_map(fn($r) => (int)$r['y'], $rows);
+    $cur   = (int)date('Y');
+    if (!in_array($cur, $years, true)) { $years[] = $cur; sort($years); }
+    jsonResponse(['years' => $years]);
+}
+
 function dutyStatsAction(): void
 {
-    $pdo = db();
+    $pdo  = db();
+    $year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+    $yStr = sprintf('%04d', $year);
 
     // All persons (include those with zero events)
     $persons = $pdo->query('SELECT id, full_name FROM person ORDER BY sort_order, id')->fetchAll();
 
     // For each duty event, determine: day_idx 0-6 (Mon-Sun) or 7 (holiday)
-    $rows = $pdo->query(
-        'SELECT de.person_id,
+    $stmt = $pdo->prepare(
+        "SELECT de.person_id,
                 CASE WHEN h.date IS NOT NULL THEN 7
-                     ELSE (CAST(strftime(\'%w\', de.start_date) AS INTEGER) + 6) % 7
+                     ELSE (CAST(strftime('%w', de.start_date) AS INTEGER) + 6) % 7
                 END AS day_idx
          FROM duty_event de
          LEFT JOIN holiday h ON h.date = de.start_date
-         WHERE de.event_type = \'duty\'
-         ORDER BY de.person_id'
-    )->fetchAll();
+         WHERE de.event_type = 'duty'
+           AND strftime('%Y', de.start_date) = :year
+         ORDER BY de.person_id"
+    );
+    $stmt->execute([':year' => $yStr]);
+    $rows = $stmt->fetchAll();
 
     $statsMap = [];
     foreach ($persons as $p) {

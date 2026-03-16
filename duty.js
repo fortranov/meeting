@@ -136,7 +136,23 @@ function render() {
 }
 
 async function openStatsModal() {
-  const data  = await (await fetch('api.php?action=duty_stats')).json();
+  document.getElementById('statsModal').classList.remove('hidden');
+
+  const yearsData = await (await fetch('api.php?action=duty_stats_years')).json();
+  const years     = yearsData.years || [new Date().getFullYear()];
+  const thisYear  = new Date().getFullYear();
+
+  const sel = document.getElementById('statsYearSelect');
+  sel.innerHTML = years.map(y =>
+    `<option value="${y}"${y === thisYear ? ' selected' : ''}>${y}</option>`
+  ).join('');
+  sel.onchange = () => loadStatsForYear(Number(sel.value));
+
+  await loadStatsForYear(Number(sel.value) || thisYear);
+}
+
+async function loadStatsForYear(year) {
+  const data  = await (await fetch(`api.php?action=duty_stats&year=${year}`)).json();
   const stats = data.stats || [];
   const wdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -161,8 +177,6 @@ async function openStatsModal() {
       </tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>`;
-
-  document.getElementById('statsModal').classList.remove('hidden');
 }
 
 function onCellClick(e) {
