@@ -685,13 +685,17 @@ body {
   .settings-card-wide { grid-column: auto; }
 }
 
+
 .settings-list { display: flex; flex-direction: column; gap: 4px; }
+
 .empty-hint { padding: 16px 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
 
 .setting-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -719,6 +723,9 @@ body {
   border-radius: 4px;
   padding: 2px 4px;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .item-name[contenteditable]:focus {
   background: var(--bg);
@@ -800,8 +807,8 @@ body {
 
 /* Person item */
 .person-item .person-info { flex: 1; min-width: 0; }
-.person-name { font-size: 0.88rem; font-weight: 500; display: block; }
-.person-dir  { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 1px; }
+.person-name { font-size: 0.88rem; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-dir  { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ─── Holiday Accordion ─── */
 .holiday-accordion {
