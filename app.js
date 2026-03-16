@@ -15,6 +15,7 @@ let _dragTaskId = null;
 let _dragMeetingId = null;
 let _dragParentId = null;
 let collapsedTasks = new Set();
+let meetingDates   = new Set();
 
 const _dp = { taskId: null, meetingId: null, start: null, picking: null, hoverDate: null, viewYear: null, viewMonth: null };
 
@@ -35,8 +36,9 @@ async function loadSiteSettings() {
     const data = await (await fetch('api.php?action=site_settings')).json();
     siteSettings = data.settings || {};
     const root = document.documentElement.style;
-    if (siteSettings.weekend_color)   root.setProperty('--weekend-bg',    siteSettings.weekend_color);
-    if (siteSettings.today_col_color) root.setProperty('--today-col-bg', siteSettings.today_col_color);
+    if (siteSettings.weekend_color)     root.setProperty('--weekend-bg',     siteSettings.weekend_color);
+    if (siteSettings.meeting_col_color) root.setProperty('--meeting-col-bg', siteSettings.meeting_col_color);
+    if (siteSettings.today_col_color)   root.setProperty('--today-col-bg',   siteSettings.today_col_color);
     if (siteSettings.col_item_width)  root.setProperty('--col-item-w',   siteSettings.col_item_width + 'px');
     if (siteSettings.col_status_width) root.setProperty('--col-status-w', siteSettings.col_status_width + 'px');
   } catch {}
@@ -113,7 +115,9 @@ async function loadTimeline() {
 function renderTimeline() {
   const days = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
   const rows = [];
+  meetingDates = new Set();
   timelineMeetings.forEach(m => {
+    meetingDates.add(m.meeting_date);
     rows.push({ type: 'meeting', id: m.id, meetingId: m.id, title: m.title, start: m.meeting_date, end: m.meeting_date, status: '', level: 0 });
     (m.tasks || []).forEach(t => pushTaskRows(rows, t, m.id, 0));
   });
@@ -279,9 +283,11 @@ function isHoliday(day) {
 }
 
 function renderDayHeader(day) {
-  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
-  const today   = toISO(day) === toISO(new Date()) ? 'today' : '';
-  return `<div class="timeline-cell day-header ${weekend} ${today}">
+  const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
+  const isoDay     = toISO(day);
+  const meetingDay = meetingDates.has(isoDay) ? 'meeting-day' : '';
+  const today      = isoDay === toISO(new Date()) ? 'today' : '';
+  return `<div class="timeline-cell day-header ${weekend} ${meetingDay} ${today}">
     <span class="weekday">${weekdays[(day.getDay() + 6) % 7]}</span>
     <strong class="date">${day.getDate()}</strong>
   </div>`;
@@ -293,10 +299,11 @@ function isDoneStatus(status) {
 }
 
 function renderRangeCell(day, start, end, status = '', directionColor = null) {
-  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
-  const d = toISO(day);
-  const isToday = d === toISO(new Date()) ? 'today' : '';
-  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
+  const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
+  const d          = toISO(day);
+  const meetingDay = meetingDates.has(d) ? 'meeting-day' : '';
+  const isToday    = d === toISO(new Date()) ? 'today' : '';
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${meetingDay} ${isToday} ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   let cellStyle = '';
   let fillStyle = '';
