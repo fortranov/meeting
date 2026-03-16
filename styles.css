@@ -185,7 +185,7 @@ body {
 
 /* ─── Drag column ─── */
 .drag-col { padding: 0 !important; justify-content: center; overflow: visible; width: var(--col-drag-w, 28px); }
-.drag-handle {
+.drag-col .drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -198,7 +198,7 @@ body {
   padding: 0 8px;
   box-sizing: border-box;
 }
-.drag-handle:active { cursor: grabbing; }
+.drag-col .drag-handle:active { cursor: grabbing; }
 .timeline-row:hover .drag-handle { opacity: 0.45; }
 .timeline-row:hover .drag-handle:hover { opacity: 0.9; }
 .timeline-row.dragging { opacity: 0.4; }
