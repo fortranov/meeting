@@ -54,7 +54,7 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="statusesList" class="settings-list"></div>
     </section>
 
-    <section class="settings-card settings-card-wide">
+    <section class="settings-card">
       <div class="settings-card-header">
         <h2>Личный состав</h2>
         <button class="btn-add" id="showAddPerson">+ Добавить</button>
@@ -68,7 +68,7 @@ if (!$access['can_view']) accessDeniedPage();
       </div>
     </section>
 
-    <section class="settings-card settings-card-wide">
+    <section class="settings-card">
       <div class="settings-card-header">
         <h2>Праздники</h2>
         <button class="btn-add" id="showAddHoliday">+ Добавить праздник</button>
@@ -76,7 +76,7 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="holidaysList"></div>
     </section>
 
-    <section class="settings-card settings-card-wide">
+    <section class="settings-card">
       <div class="settings-card-header">
         <h2>Шаблон заседания</h2>
         <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
@@ -85,7 +85,7 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="templateTasksList" class="settings-list"></div>
     </section>
 
-    <section class="settings-card settings-card-wide">
+    <section class="settings-card">
       <div class="settings-card-header">
         <h2>Цвета и размеры</h2>
       </div>
