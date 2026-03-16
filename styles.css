@@ -1204,7 +1204,6 @@ body {
 .vac-month-cell {
   position: relative;
   padding: 0;
-  overflow: hidden;
 }
 .vac-person-name {
   flex: 1;
@@ -1247,7 +1246,7 @@ body {
   transition: filter 0.1s;
   min-width: 4px;
 }
-.vac-event:hover { filter: brightness(0.88); z-index: 1; overflow: visible; }
+.vac-event:hover { filter: brightness(0.88); z-index: 10; overflow: visible; }
 
 .vac-event-label {
   font-size: 0.72rem;
@@ -1272,6 +1271,8 @@ body {
   background: rgba(255,255,255,0.6);
   border-radius: 3px;
   padding: 1px;
+  z-index: 20;
+  white-space: nowrap;
 }
 .vac-event:hover .vac-event-actions { display: flex; }
 

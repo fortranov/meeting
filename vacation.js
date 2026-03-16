@@ -104,6 +104,22 @@ function renderTable() {
   hHtml += `</div>`;
   headerEl.innerHTML = hHtml;
 
+  // Pre-compute which month holds the most days for each event (label goes there only)
+  const evtLabelMonth = new Map();
+  for (const evt of events) {
+    let maxDays = 0, labelM = null;
+    for (let m = 1; m <= 12; m++) {
+      const dim = daysInMonth(curYear, m);
+      const ms  = fmtISO(curYear, m, 1);
+      const me  = fmtISO(curYear, m, dim);
+      if (evt.end_date < ms || evt.start_date > me) continue;
+      const days = parseInt((evt.end_date < me ? evt.end_date : me).split('-')[2], 10)
+                 - parseInt((evt.start_date > ms ? evt.start_date : ms).split('-')[2], 10) + 1;
+      if (days > maxDays) { maxDays = days; labelM = m; }
+    }
+    evtLabelMonth.set(evt.id, labelM);
+  }
+
   // Body rows
   let bHtml = '';
   for (const p of persons) {
@@ -140,7 +156,9 @@ function renderTable() {
           data-eid="${evt.id}" data-pid="${p.id}"
           data-start="${evt.start_date}" data-end="${evt.end_date}"
           title="${escHtml(tt)}">`;
-        bHtml += `<span class="vac-event-label">${escHtml(label)}</span>`;
+        if (evtLabelMonth.get(evt.id) === m) {
+          bHtml += `<span class="vac-event-label">${escHtml(label)}</span>`;
+        }
         if (canEdit) {
           bHtml += `<div class="vac-event-actions">`;
           bHtml += `<button class="vac-event-edit" data-eid="${evt.id}" data-pid="${p.id}" data-start="${evt.start_date}" data-end="${evt.end_date}" title="Редактировать">✎</button>`;
