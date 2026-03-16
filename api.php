@@ -120,6 +120,9 @@ try {
         case 'duty_stats_years':
             dutyStatsYearsAction();
             break;
+        case 'meetings_list':
+            meetingsListAction();
+            break;
         case 'vacation_events':
             vacationEventsAction();
             break;
@@ -775,6 +778,12 @@ function dutyStatsAction(): void
     }
 
     jsonResponse(['stats' => array_values($statsMap)]);
+}
+
+function meetingsListAction(): void
+{
+    $rows = db()->query('SELECT id, meeting_date FROM meeting ORDER BY meeting_date')->fetchAll();
+    jsonResponse(['meetings' => $rows]);
 }
 
 function vacationEventsAction(): void

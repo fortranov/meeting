@@ -1194,6 +1194,7 @@ body {
   letter-spacing: 0.4px;
 }
 .vac-month-hdr {
+  position: relative;
   justify-content: center;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1247,6 +1248,17 @@ body {
   min-width: 4px;
 }
 .vac-event:hover { filter: brightness(0.88); z-index: 10; overflow: visible; }
+
+.vac-meeting-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.55;
+}
 
 .vac-event-label {
   font-size: 0.72rem;

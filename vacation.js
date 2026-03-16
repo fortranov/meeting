@@ -4,10 +4,12 @@ const VAC_MONTHS_SHORT = ['Янв','Фев','Мар','Апр','Май','Июн',
 const VAC_MONTHS_FULL  = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
 let curYear = new Date().getFullYear();
-let persons = [];
-let events  = [];
+let persons  = [];
+let events   = [];
+let meetings = [];
 let siteSettings = {};
-let vacColor = '#fef9c3';
+let vacColor     = '#fef9c3';
+let meetingLineColor = '#f0b429';
 
 let _delId = null;
 let _dp = {
@@ -60,14 +62,14 @@ async function init() {
     m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); })
   );
 
-  await Promise.all([loadPersons(), loadEvents(), loadSiteSettings()]);
+  await Promise.all([loadPersons(), loadEvents(), loadMeetings(), loadSiteSettings()]);
   render();
 }
 
 async function navigate(dir) {
   curYear += dir;
   closeDatePicker();
-  await loadEvents();
+  await Promise.all([loadEvents(), loadMeetings()]);
   render();
 }
 
@@ -75,11 +77,15 @@ async function loadSiteSettings() {
   try {
     const data = await (await fetch('api.php?action=site_settings')).json();
     siteSettings = data.settings || {};
-    if (siteSettings.vacation_color) vacColor = siteSettings.vacation_color;
+    if (siteSettings.vacation_color)    vacColor          = siteSettings.vacation_color;
+    if (siteSettings.meeting_col_color) meetingLineColor  = siteSettings.meeting_col_color;
   } catch {}
 }
 async function loadPersons() {
   persons = ((await (await fetch('api.php?action=persons')).json()).persons) || [];
+}
+async function loadMeetings() {
+  meetings = ((await (await fetch('api.php?action=meetings_list')).json()).meetings) || [];
 }
 async function loadEvents() {
   events = ((await (await fetch(`api.php?action=vacation_events&year=${curYear}`)).json()).events) || [];
@@ -99,10 +105,28 @@ function renderTable() {
   let hHtml = `<div class="vac-row vac-header-row">`;
   hHtml += `<div class="vac-cell vac-person-cell vac-hdr-cell">Сотрудник</div>`;
   for (let m = 1; m <= 12; m++) {
-    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}</div>`;
+    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}${meetingLines(m)}</div>`;
   }
   hHtml += `</div>`;
   headerEl.innerHTML = hHtml;
+
+  // Precompute meeting days per month for the current year
+  const meetingDaysByMonth = new Map(); // month(1-12) -> Set of day numbers
+  for (const mtg of meetings) {
+    if (!mtg.meeting_date) continue;
+    const [y, m, d] = mtg.meeting_date.split('-').map(Number);
+    if (y !== curYear) continue;
+    if (!meetingDaysByMonth.has(m)) meetingDaysByMonth.set(m, new Set());
+    meetingDaysByMonth.get(m).add(d);
+  }
+  function meetingLines(m) {
+    const dim  = daysInMonth(curYear, m);
+    const days = meetingDaysByMonth.get(m) || new Set();
+    return [...days].map(d => {
+      const lp = ((d - 0.5) / dim * 100).toFixed(3);
+      return `<div class="vac-meeting-line" style="left:${lp}%;background:${escHtml(meetingLineColor)}"></div>`;
+    }).join('');
+  }
 
   // Pre-compute which month holds the most days for each event (label goes there only)
   const evtLabelMonth = new Map();
@@ -136,7 +160,7 @@ function renderTable() {
       const dim        = daysInMonth(curYear, m);
       const monthStart = fmtISO(curYear, m, 1);
       const monthEnd   = fmtISO(curYear, m, dim);
-      bHtml += `<div class="vac-cell vac-month-cell">`;
+      bHtml += `<div class="vac-cell vac-month-cell">${meetingLines(m)}`;
       for (const evt of pEvts) {
         if (evt.end_date < monthStart || evt.start_date > monthEnd) continue;
         const cs = evt.start_date > monthStart ? evt.start_date : monthStart;
