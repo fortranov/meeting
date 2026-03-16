@@ -123,7 +123,7 @@ function renderTable() {
   };
 
   for (let m = 1; m <= 12; m++) {
-    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}${meetingLines(m)}</div>`;
+    hHtml += `<div class="vac-cell vac-month-hdr">${escHtml(VAC_MONTHS_SHORT[m - 1])}</div>`;
   }
   hHtml += `</div>`;
   headerEl.innerHTML = hHtml;
