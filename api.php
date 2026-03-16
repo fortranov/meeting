@@ -120,6 +120,12 @@ try {
         case 'duty_stats_years':
             dutyStatsYearsAction();
             break;
+        case 'vacation_events':
+            vacationEventsAction();
+            break;
+        case 'vacation_years':
+            vacationYearsAction();
+            break;
         case 'site_settings':
             siteSettingsAction();
             break;
@@ -676,6 +682,7 @@ function dutyEventSaveAction(): void
 {
     $pdo      = db();
     $payload  = getJsonPayload();
+    $id       = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
     $personId = (int)($payload['person_id']  ?? 0);
     $type     = trim((string)($payload['event_type'] ?? ''));
     $start    = trim((string)($payload['start_date'] ?? ''));
@@ -685,11 +692,18 @@ function dutyEventSaveAction(): void
         jsonResponse(['error' => 'Неверные данные'], 422);
     }
     if ($end < $start) $end = $start;
-    $check = $pdo->prepare(
-        'SELECT COUNT(*) AS c FROM duty_event WHERE person_id=:pid AND start_date<=:end AND end_date>=:start'
-    );
-    $check->execute([':pid' => $personId, ':start' => $start, ':end' => $end]);
+    $checkSql = 'SELECT COUNT(*) AS c FROM duty_event WHERE person_id=:pid AND start_date<=:end AND end_date>=:start';
+    $params   = [':pid' => $personId, ':start' => $start, ':end' => $end];
+    if ($id) { $checkSql .= ' AND id != :id'; $params[':id'] = $id; }
+    $check = $pdo->prepare($checkSql);
+    $check->execute($params);
     if ((int)$check->fetch()['c'] > 0) jsonResponse(['error' => 'Пересечение с существующим событием'], 409);
+    if ($id) {
+        $pdo->prepare(
+            'UPDATE duty_event SET person_id=:pid, event_type=:type, start_date=:start, end_date=:end WHERE id=:id'
+        )->execute([':pid' => $personId, ':type' => $type, ':start' => $start, ':end' => $end, ':id' => $id]);
+        jsonResponse(['ok' => true, 'id' => $id]);
+    }
     $pdo->prepare(
         'INSERT INTO duty_event (person_id, event_type, start_date, end_date) VALUES (:pid,:type,:start,:end)'
     )->execute([':pid' => $personId, ':type' => $type, ':start' => $start, ':end' => $end]);
@@ -763,6 +777,34 @@ function dutyStatsAction(): void
     jsonResponse(['stats' => array_values($statsMap)]);
 }
 
+function vacationEventsAction(): void
+{
+    $pdo   = db();
+    $year  = (int)($_GET['year'] ?? date('Y'));
+    $yStr  = sprintf('%04d', $year);
+    $start = $yStr . '-01-01';
+    $end   = $yStr . '-12-31';
+    $stmt  = $pdo->prepare(
+        "SELECT id, person_id, event_type, start_date, end_date FROM duty_event
+         WHERE event_type = 'vacation'
+           AND start_date <= :end AND end_date >= :start
+         ORDER BY person_id, start_date"
+    );
+    $stmt->execute([':start' => $start, ':end' => $end]);
+    jsonResponse(['events' => $stmt->fetchAll()]);
+}
+
+function vacationYearsAction(): void
+{
+    $rows  = db()->query(
+        "SELECT DISTINCT strftime('%Y', start_date) AS y FROM duty_event WHERE event_type='vacation' ORDER BY y"
+    )->fetchAll();
+    $years = array_map(fn($r) => (int)$r['y'], $rows);
+    $cur   = (int)date('Y');
+    if (!in_array($cur, $years, true)) { $years[] = $cur; sort($years); }
+    jsonResponse(['years' => $years]);
+}
+
 function siteSettingsAction(): void
 {
     try {
@@ -779,7 +821,7 @@ function siteSettingsSaveAction(): void
 {
     $pdo     = db();
     $payload = getJsonPayload();
-    $allowed = ['ip_access_enabled', 'weekend_color', 'vacation_color', 'col_item_width', 'col_status_width', 'col_day_min_width'];
+    $allowed = ['ip_access_enabled', 'weekend_color', 'vacation_color', 'today_col_color', 'meeting_col_color', 'col_item_width', 'col_status_width', 'col_day_min_width'];
     foreach ($allowed as $key) {
         if (!array_key_exists($key, $payload)) continue;
         $pdo->prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (:k, :v)')

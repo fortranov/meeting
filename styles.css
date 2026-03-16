@@ -1139,3 +1139,165 @@ body {
 .stats-table tr:last-child td { border-bottom: none; }
 .stats-table .stats-name { text-align: left; font-weight: 500; }
 .stats-table .stats-zero { color: var(--border); }
+
+/* ─── Vacation Schedule ─── */
+.vac-table-outer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.vac-header-wrap {
+  position: sticky;
+  top: 52px;
+  z-index: 20;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+}
+.vac-body-wrap { overflow-x: auto; }
+.vac-table { display: block; }
+
+.vac-row {
+  display: grid;
+  grid-template-columns: 180px repeat(12, 1fr);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 600px;
+}
+.vac-row:last-child { border-bottom: none; }
+.vac-row:not(.vac-header-row):hover { background: #f6f9ff; }
+.vac-header-row { background: #f4f7fd; }
+
+.vac-cell {
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  min-height: 40px;
+}
+.vac-cell:last-child { border-right: none; }
+
+.vac-person-cell {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: inherit;
+  border-right: 2px solid var(--border) !important;
+  font-size: 0.82rem;
+  gap: 6px;
+  justify-content: space-between;
+}
+.vac-hdr-cell {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.vac-month-hdr {
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.vac-month-cell {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.vac-person-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vac-add-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  padding: 0;
+  font-family: inherit;
+}
+.vac-row:hover .vac-add-btn { opacity: 1; }
+.vac-add-btn:hover { background: var(--accent); color: var(--primary); border-color: var(--primary); }
+
+.vac-event {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  border-radius: 4px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  transition: filter 0.1s;
+  min-width: 4px;
+}
+.vac-event:hover { filter: brightness(0.88); z-index: 1; overflow: visible; }
+
+.vac-event-actions {
+  display: none;
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  gap: 2px;
+  align-items: center;
+  background: rgba(255,255,255,0.6);
+  border-radius: 3px;
+  padding: 1px;
+}
+.vac-event:hover .vac-event-actions { display: flex; }
+
+.vac-event-edit, .vac-event-del {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  background: rgba(255,255,255,0.9);
+  color: var(--text);
+  transition: background 0.1s, color 0.1s;
+}
+.vac-event-edit:hover { background: var(--accent); color: var(--primary); }
+.vac-event-del:hover  { background: #fff0f0; color: var(--danger); }
+
+/* Date picker save row */
+.dp-save-row {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+.dp-save-row button {
+  padding: 7px 16px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.dp-save-row button:hover { background: #1a56e8; }
