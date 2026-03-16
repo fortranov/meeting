@@ -108,7 +108,7 @@ if (!$access['can_view']) accessDeniedPage();
         <option value="">— не выбрано —</option>
       </select>
     </label>
-    <label>Email (необязательно)<input id="personEmail" type="email" /></label>
+    <label>День рождения (необязательно)<input id="personBirthDate" type="date" /></label>
     <label>IP-адрес (необязательно)<input id="personIp" placeholder="например, 192.168.1.100" /></label>
     <div class="page-perms-section">
       <span class="page-perms-title">Права доступа к страницам</span>

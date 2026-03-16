@@ -256,7 +256,7 @@ function openPersonModal(id = null) {
   document.getElementById('personId').value         = id || '';
   document.getElementById('personFirstName').value  = '';
   document.getElementById('personLastName').value   = '';
-  document.getElementById('personEmail').value      = '';
+  document.getElementById('personBirthDate').value  = '';
   document.getElementById('personDirection').value  = '';
   document.getElementById('personIp').value         = '';
   ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit']
@@ -267,7 +267,7 @@ function openPersonModal(id = null) {
     if (p) {
       document.getElementById('personFirstName').value = p.first_name || '';
       document.getElementById('personLastName').value  = p.last_name  || '';
-      document.getElementById('personEmail').value     = p.email      || '';
+      document.getElementById('personBirthDate').value = p.birth_date || '';
       document.getElementById('personDirection').value = p.direction_id || '';
       document.getElementById('personIp').value        = p.ip || '';
       document.getElementById('permMainView').checked  = !!Number(p.page_main_view);
@@ -286,7 +286,7 @@ async function savePerson() {
     id:                 id || undefined,
     first_name:         document.getElementById('personFirstName').value.trim(),
     last_name:          document.getElementById('personLastName').value.trim(),
-    email:              document.getElementById('personEmail').value.trim(),
+    birth_date:         document.getElementById('personBirthDate').value || null,
     direction_id:       document.getElementById('personDirection').value || null,
     ip:                 document.getElementById('personIp').value.trim(),
     page_main_view:     document.getElementById('permMainView').checked ? 1 : 0,

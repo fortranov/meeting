@@ -231,13 +231,13 @@ function personsAction(): void
     $pdo = db();
     $q = trim((string)($_GET['q'] ?? ''));
 
-    $fields = 'id, first_name, last_name, full_name, email, direction_id, sort_order,
+    $fields = 'id, first_name, last_name, full_name, birth_date, direction_id, sort_order,
                ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
                page_settings_view, page_settings_edit';
     if ($q === '') {
         $stmt = $pdo->query("SELECT $fields FROM person ORDER BY sort_order, id LIMIT 50");
     } else {
-        $stmt = $pdo->prepare("SELECT $fields FROM person WHERE full_name LIKE :q OR email LIKE :q ORDER BY sort_order, id LIMIT 50");
+        $stmt = $pdo->prepare("SELECT $fields FROM person WHERE full_name LIKE :q ORDER BY sort_order, id LIMIT 50");
         $stmt->execute([':q' => '%' . $q . '%']);
     }
     jsonResponse(['persons' => $stmt->fetchAll()]);
@@ -468,7 +468,7 @@ function personSaveAction(): void
     $id        = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
     $firstName = trim((string)($payload['first_name'] ?? ''));
     $lastName  = trim((string)($payload['last_name']  ?? ''));
-    $email     = trim((string)($payload['email']      ?? ''));
+    $birthDate = trim((string)($payload['birth_date'] ?? '')) ?: null;
     $dirId     = isset($payload['direction_id']) && $payload['direction_id'] !== '' ? (int)$payload['direction_id'] : null;
     $ip        = trim((string)($payload['ip'] ?? ''));
     $fullName  = trim("$firstName $lastName");
@@ -484,23 +484,23 @@ function personSaveAction(): void
 
     if ($id) {
         $pdo->prepare(
-            'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, email=:email,
+            'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, birth_date=:bd,
              direction_id=:dir, ip=:ip, page_main_view=:pmv, page_main_edit=:pme,
              page_duty_view=:pdv, page_duty_edit=:pde, page_settings_view=:psv,
              page_settings_edit=:pse WHERE id=:id'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
-            ':email' => $email ?: null, ':dir' => $dirId, ':ip' => $ip,
+            ':bd' => $birthDate, ':dir' => $dirId, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
         $pdo->prepare(
-            'INSERT INTO person (first_name, last_name, full_name, email, direction_id, sort_order,
+            'INSERT INTO person (first_name, last_name, full_name, birth_date, direction_id, sort_order,
              ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
              page_settings_view, page_settings_edit)
-             VALUES (:fn,:ln,:full,:email,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse)'
+             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse)'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
-            ':email' => $email ?: null, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
+            ':bd' => $birthDate, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse]);
         $id = (int)$pdo->lastInsertId();
