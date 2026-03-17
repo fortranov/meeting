@@ -10,6 +10,12 @@
 .dash-duty-row:last-child {
   border-bottom: none;
 }
+.dash-duty-row--today .dash-duty-label,
+.dash-duty-row--today .dash-duty-person {
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--text);
+}
 .dash-duty-label {
   font-size: 0.88rem;
   color: var(--muted);

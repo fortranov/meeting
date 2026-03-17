@@ -16,7 +16,7 @@ window.BLOCK_REGISTRY.duty = async function renderDutyBlock(el) {
     };
 
     el.querySelector('.dash-block-body').innerHTML = days.map((d, i) => `
-      <div class="dash-duty-row">
+      <div class="dash-duty-row${i === 1 ? ' dash-duty-row--today' : ''}">
         <span class="dash-duty-label">${label(i, d.date)}</span>
         <span class="dash-duty-person">${d.last_name || '—'}</span>
       </div>`).join('');
