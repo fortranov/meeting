@@ -108,9 +108,10 @@ async function renderTodayBlock(el) {
       </div>`;
 
     el.querySelector('.dash-block-body').innerHTML = `
-      <div class="dash-stat-row">
+      <div class="dash-stat-row dash-stat-row--detail">
         <span class="dash-stat-label">В наличии</span>
         <span class="dash-stat-val">${present}</span>
+        <span></span>
       </div>
       ${detailRow('Отпуск',      vacation.count,     vacation.names)}
       ${detailRow('Командировка',businessTrip.count, businessTrip.names)}
