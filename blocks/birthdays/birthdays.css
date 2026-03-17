@@ -1,0 +1,60 @@
+.bday-today {
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.bday-today-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.2px;
+}
+.bday-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.bday-lists--sep {
+  border-top: 0;
+}
+.bday-col {
+  padding: 10px 16px 12px;
+}
+.bday-col:first-child {
+  border-right: 1px solid var(--border);
+}
+.bday-col-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.bday-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+.bday-name {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.bday-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.bday-empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+}

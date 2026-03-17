@@ -193,6 +193,9 @@ try {
         case 'dashboard_blocks':
             dashboardBlocksAction();
             break;
+        case 'dashboard_birthdays':
+            dashboardBirthdaysAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -1318,4 +1321,69 @@ function dashboardBlocksAction(): void
     }
     usort($blocks, fn($a, $b) => $a['sort_order'] <=> $b['sort_order']);
     jsonResponse(['blocks' => $blocks]);
+}
+
+function dashboardBirthdaysAction(): void
+{
+    $pdo     = db();
+    $today   = new DateTime('today');
+    $thisYear = (int)$today->format('Y');
+
+    $persons = $pdo->query(
+        "SELECT full_name, first_name, last_name, birth_date FROM person
+         WHERE birth_date IS NOT NULL AND birth_date != ''
+         ORDER BY first_name, last_name"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $todayList    = [];
+    $pastList     = [];
+    $upcomingList = [];
+
+    foreach ($persons as $p) {
+        try {
+            $bd = new DateTime($p['birth_date']);
+        } catch (\Exception $e) {
+            continue;
+        }
+
+        $md   = $bd->format('m-d');
+        $name = trim($p['full_name'] ?: ($p['first_name'] . ' ' . $p['last_name']));
+        $date = $bd->format('d.m');
+
+        // Try this year's birthday; handle Feb 29 on non-leap years
+        try {
+            $bday = new DateTime($thisYear . '-' . $md);
+        } catch (\Exception $e) {
+            // Feb 29 → use Mar 1 in non-leap years
+            $bday = new DateTime($thisYear . '-03-01');
+        }
+
+        $diff  = $today->diff($bday);
+        $days  = (int)$diff->days;
+        $isPast = (bool)$diff->invert;
+
+        if ($days === 0) {
+            $todayList[] = ['name' => $name, 'date' => $date];
+        } elseif ($isPast && $days <= 2) {
+            $pastList[] = ['name' => $name, 'date' => $date, 'days_ago' => $days];
+        } elseif (!$isPast && $days <= 30) {
+            $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $days];
+        } elseif ($isPast) {
+            // Check if next year's birthday falls within upcoming 30 days (year-wrap)
+            try {
+                $bdayNext = new DateTime(($thisYear + 1) . '-' . $md);
+            } catch (\Exception $e) {
+                $bdayNext = new DateTime(($thisYear + 1) . '-03-01');
+            }
+            $diffNext = $today->diff($bdayNext);
+            $daysNext = (int)$diffNext->days;
+            if ($daysNext >= 1 && $daysNext <= 30) {
+                $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $daysNext];
+            }
+        }
+    }
+
+    usort($upcomingList, fn($a, $b) => $a['days_till'] <=> $b['days_till']);
+
+    jsonResponse(['today' => $todayList, 'past' => $pastList, 'upcoming' => $upcomingList]);
 }
