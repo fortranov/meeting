@@ -260,6 +260,7 @@ function timelineAction(): void
                 $roots[] = &$task;
             }
         }
+        unset($task);
 
         $result[] = [
             'id' => $mid,
@@ -965,6 +966,8 @@ function controlTimelineAction(): void
                 $roots[] = &$task;
             }
         }
+        unset($task);
+
         $result[] = [
             'id'           => $cid,
             'title'        => $control['title'],
