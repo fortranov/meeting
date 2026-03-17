@@ -1,16 +1,10 @@
-const LAYOUT_KEY = 'dashboardLayout';
+const LAYOUT_KEY  = 'dashboardLayout';
+const ENABLED_KEY = 'dashboardEnabledBlocks';
 
-// Block registry: id → async render function
-const BLOCKS = {
-  today:        renderTodayBlock,
-  tasks:        renderTasksBlock,
-  controlTasks: renderControlTasksBlock,
-  duty:         renderDutyBlock,
-};
+const BLOCK_REGISTRY = window.BLOCK_REGISTRY || {};
 
-const DEFAULT_LAYOUT = [['today', 'tasks', 'controlTasks', 'duty'], [], []];
-
-let layout = loadLayout();
+let layout      = loadLayout();
+let BLOCKS      = {};   // recomputed each render from BLOCK_REGISTRY filtered by enabled state
 let reorderMode = false;
 let dragId      = null;
 let dragOverCol = null;
@@ -27,11 +21,26 @@ function loadLayout() {
     const s = JSON.parse(localStorage.getItem(LAYOUT_KEY));
     if (Array.isArray(s) && s.length === 3 && s.every(Array.isArray)) return s;
   } catch {}
-  return DEFAULT_LAYOUT.map(col => [...col]);
+  return [Object.keys(BLOCK_REGISTRY), [], []];
 }
 
 function saveLayout() {
   localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+}
+
+// ─── Enabled blocks ──────────────────────────────────────
+
+function getEnabledBlocks() {
+  try {
+    const s = JSON.parse(localStorage.getItem(ENABLED_KEY));
+    if (Array.isArray(s)) {
+      const set = new Set(s);
+      return Object.fromEntries(
+        Object.entries(BLOCK_REGISTRY).filter(([id]) => set.has(id))
+      );
+    }
+  } catch {}
+  return { ...BLOCK_REGISTRY };
 }
 
 function ensureAllBlocks() {
@@ -44,6 +53,7 @@ function ensureAllBlocks() {
 // ─── Grid rendering ──────────────────────────────────────
 
 async function buildGrid() {
+  BLOCKS = getEnabledBlocks();
   ensureAllBlocks();
   const grid = document.getElementById('dashGrid');
   grid.innerHTML = '';
@@ -83,139 +93,6 @@ async function makeBlock(id) {
     <div class="dash-block-body"><div class="dash-loading">Загрузка…</div></div>`;
   await BLOCKS[id](el);
   return el;
-}
-
-// ─── Block: Сегодня ──────────────────────────────────────
-
-async function renderTodayBlock(el) {
-  const DAYS   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-  const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const now = new Date();
-  el.querySelector('.dash-block-title').textContent =
-    `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
-
-  try {
-    const data = await (await fetch('api.php?action=dashboard_today')).json();
-    const vacation     = data.vacation      || { count: 0, names: [] };
-    const businessTrip = data.business_trip || { count: 0, names: [] };
-    const sickLeave    = data.sick_leave    || { count: 0, names: [] };
-    const study        = data.study         || { count: 0, names: [] };
-    const present      = (Number(data.total) || 0)
-                       - vacation.count - businessTrip.count - sickLeave.count - study.count;
-
-    const detailRow = (label, count, names) => `
-      <div class="dash-stat-row dash-stat-row--detail">
-        <span class="dash-stat-label">${label}</span>
-        <span class="dash-stat-val">${count}</span>
-        <span class="dash-stat-names">${names.join(', ')}</span>
-      </div>`;
-
-    el.querySelector('.dash-block-body').innerHTML = `
-      <div class="dash-stat-row dash-stat-row--detail">
-        <span class="dash-stat-label">В наличии</span>
-        <span class="dash-stat-val">${present}</span>
-        <span></span>
-      </div>
-      ${detailRow('Отпуск',      vacation.count,     vacation.names)}
-      ${detailRow('Командировка',businessTrip.count, businessTrip.names)}
-      ${detailRow('Больничный',  sickLeave.count,    sickLeave.names)}
-      ${detailRow('Учёба',       study.count,        study.names)}`;
-  } catch {
-    el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
-  }
-}
-
-// ─── Block: Задачи по подготовке ─────────────────────────
-
-async function renderTasksBlock(el) {
-  el.querySelector('.dash-block-title').textContent = 'Задачи по подготовке';
-
-  try {
-    const data  = await (await fetch('api.php?action=dashboard_tasks')).json();
-    const tasks = data.tasks || [];
-
-    if (!tasks.length) {
-      el.querySelector('.dash-block-body').innerHTML =
-        '<p class="dash-loading">Нет активных задач на сегодня</p>';
-      return;
-    }
-
-    const fmtDate = s => {
-      const [, m, d] = s.split('-');
-      return `${d}.${m}`;
-    };
-
-    el.querySelector('.dash-block-body').innerHTML = tasks.map(t => `
-      <div class="dash-task-row">
-        <div class="dash-task-title">${t.title}</div>
-        <div class="dash-task-meta">
-          <span class="dash-task-dates">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</span>
-          <span class="dash-task-persons">${t.responsible || ''}</span>
-        </div>
-      </div>`).join('');
-  } catch {
-    el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
-  }
-}
-
-// ─── Block: Задачи по контролю ────────────────────────────
-
-async function renderControlTasksBlock(el) {
-  el.querySelector('.dash-block-title').textContent = 'Задачи по контролю';
-
-  try {
-    const data  = await (await fetch('api.php?action=dashboard_control_tasks')).json();
-    const tasks = data.tasks || [];
-
-    if (!tasks.length) {
-      el.querySelector('.dash-block-body').innerHTML =
-        '<p class="dash-loading">Нет активных задач на сегодня</p>';
-      return;
-    }
-
-    const fmtDate = s => {
-      const [, m, d] = s.split('-');
-      return `${d}.${m}`;
-    };
-
-    el.querySelector('.dash-block-body').innerHTML = tasks.map(t => `
-      <div class="dash-task-row">
-        <div class="dash-task-title">${t.title}</div>
-        <div class="dash-task-meta">
-          <span class="dash-task-dates">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</span>
-          <span class="dash-task-persons">${t.responsible || ''}</span>
-        </div>
-      </div>`).join('');
-  } catch {
-    el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
-  }
-}
-
-// ─── Block: Дежурства ────────────────────────────────────
-
-async function renderDutyBlock(el) {
-  const DAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-
-  el.querySelector('.dash-block-title').textContent = 'Дежурства';
-
-  try {
-    const data = await (await fetch('api.php?action=dashboard_duty')).json();
-    const days = data.days || [];
-
-    const label = (i, dateStr) => {
-      if (i === 0) return 'С суток';
-      if (i === 1) return 'Сегодня';
-      return DAYS[new Date(dateStr + 'T00:00:00').getDay()];
-    };
-
-    el.querySelector('.dash-block-body').innerHTML = days.map((d, i) => `
-      <div class="dash-duty-row">
-        <span class="dash-duty-label">${label(i, d.date)}</span>
-        <span class="dash-duty-person">${d.last_name || '—'}</span>
-      </div>`).join('');
-  } catch {
-    el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
-  }
 }
 
 // ─── Toggle ──────────────────────────────────────────────

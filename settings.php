@@ -102,6 +102,14 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="colorSizeSettings" class="cs-grid"></div>
     </section>
 
+    <section class="settings-card">
+      <div class="settings-card-header">
+        <h2>Модули</h2>
+      </div>
+      <p class="settings-hint">Выберите блоки, отображаемые на странице Дашборд.</p>
+      <div id="modulesList" class="settings-list"></div>
+    </section>
+
   </div>
 </main>
 

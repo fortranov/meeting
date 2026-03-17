@@ -190,6 +190,9 @@ try {
         case 'dashboard_duty':
             dashboardDutyAction();
             break;
+        case 'dashboard_blocks':
+            dashboardBlocksAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -1302,4 +1305,17 @@ function dashboardDutyAction(): void
     }
 
     jsonResponse(['days' => $days]);
+}
+
+function dashboardBlocksAction(): void
+{
+    $blocks = [];
+    foreach (glob(__DIR__ . '/blocks/*/block.php') as $f) {
+        $meta = require $f;
+        if (is_array($meta) && isset($meta['id'], $meta['name'])) {
+            $blocks[] = ['id' => $meta['id'], 'name' => $meta['name'], 'sort_order' => $meta['sort_order'] ?? 0];
+        }
+    }
+    usort($blocks, fn($a, $b) => $a['sort_order'] <=> $b['sort_order']);
+    jsonResponse(['blocks' => $blocks]);
 }

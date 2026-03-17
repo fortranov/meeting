@@ -11,7 +11,7 @@ let colorSizeData         = {};
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadControlTemplateTasks(), loadHolidays(), loadSiteSettings()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadControlTemplateTasks(), loadHolidays(), loadSiteSettings(), loadModules()]);
 }
 
 function bindEvents() {
@@ -685,6 +685,52 @@ async function saveColorSizeSettings() {
   };
   await api('site_settings_save', payload);
   colorSizeData = { ...colorSizeData, ...payload };
+}
+
+// ─── Modules ──────────────────────────────────────────────
+
+const ENABLED_KEY = 'dashboardEnabledBlocks';
+
+function getEnabledSet(allIds) {
+  try {
+    const s = JSON.parse(localStorage.getItem(ENABLED_KEY));
+    if (Array.isArray(s)) return new Set(s);
+  } catch {}
+  return new Set(allIds); // all enabled by default
+}
+
+async function loadModules() {
+  const data   = await api('dashboard_blocks');
+  const blocks = data.blocks || [];
+  const allIds = blocks.map(b => b.id);
+  const enabled = getEnabledSet(allIds);
+
+  const list = document.getElementById('modulesList');
+  if (!blocks.length) {
+    list.innerHTML = '<div class="empty-hint">Нет блоков</div>';
+    return;
+  }
+
+  list.innerHTML = blocks.map(b => `
+    <div class="setting-item">
+      <span>${b.name}</span>
+      <label class="module-toggle">
+        <input type="checkbox" data-block-id="${b.id}" ${enabled.has(b.id) ? 'checked' : ''} />
+        <span class="module-toggle-track"></span>
+      </label>
+    </div>`).join('');
+
+  list.querySelectorAll('input[data-block-id]').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const current = getEnabledSet(allIds);
+      if (chk.checked) {
+        current.add(chk.dataset.blockId);
+      } else {
+        current.delete(chk.dataset.blockId);
+      }
+      localStorage.setItem(ENABLED_KEY, JSON.stringify([...current]));
+    });
+  });
 }
 
 init();

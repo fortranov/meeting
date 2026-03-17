@@ -1,0 +1,26 @@
+window.BLOCK_REGISTRY = window.BLOCK_REGISTRY || {};
+
+window.BLOCK_REGISTRY.duty = async function renderDutyBlock(el) {
+  const DAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+
+  el.querySelector('.dash-block-title').textContent = 'Дежурства';
+
+  try {
+    const data = await (await fetch('api.php?action=dashboard_duty')).json();
+    const days = data.days || [];
+
+    const label = (i, dateStr) => {
+      if (i === 0) return 'С суток';
+      if (i === 1) return 'Сегодня';
+      return DAYS[new Date(dateStr + 'T00:00:00').getDay()];
+    };
+
+    el.querySelector('.dash-block-body').innerHTML = days.map((d, i) => `
+      <div class="dash-duty-row">
+        <span class="dash-duty-label">${label(i, d.date)}</span>
+        <span class="dash-duty-person">${d.last_name || '—'}</span>
+      </div>`).join('');
+  } catch {
+    el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
+  }
+};
