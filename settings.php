@@ -11,13 +11,13 @@ if (!$access['can_view']) accessDeniedPage();
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Настройки — Новый Аналитический Комплекс</title>
+  <title>Настройки — Ежедневник</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <header class="top-nav">
-  <a href="dashboard.php" class="brand">Новый Аналитический Комплекс</a>
+  <a href="dashboard.php" class="brand">Ежедневник</a>
   <nav>
     <a href="plan.php">План заседаний</a>
     <a href="control.php">Контроль</a>

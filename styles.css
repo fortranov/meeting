@@ -40,15 +40,21 @@ body {
   background: var(--surface);
 }
 .brand {
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: -0.3px;
-  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--primary);
+  padding: 5px 11px;
+  border-radius: 6px;
   margin-right: 12px;
   text-decoration: none;
   flex-shrink: 0;
 }
-.brand:hover { opacity: .8; }
+.brand:hover { opacity: .85; }
 .brand.active-brand { pointer-events: none; }
 .top-nav nav { display: flex; gap: 2px; }
 .nav-settings { margin-left: auto; }
