@@ -178,6 +178,9 @@ try {
             requirePost();
             controlTemplateTaskReorderAction();
             break;
+        case 'dashboard_today':
+            dashboardTodayAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -1174,4 +1177,24 @@ function controlTemplateTaskReorderAction(): void
     $stmt = $pdo->prepare('UPDATE control_template_task SET sort_order=:sort WHERE id=:id');
     foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
     jsonResponse(['ok' => true]);
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+function dashboardTodayAction(): void
+{
+    $pdo   = db();
+    $today = date('Y-m-d');
+
+    $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person')->fetch()['c'];
+
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(DISTINCT person_id) AS c FROM duty_event
+         WHERE event_type = 'vacation'
+           AND start_date <= :today AND end_date >= :today"
+    );
+    $stmt->execute([':today' => $today]);
+    $vacation = (int)$stmt->fetch()['c'];
+
+    jsonResponse(['total' => $total, 'vacation' => $vacation]);
 }

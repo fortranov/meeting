@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/access.php';
 db();
-$access = checkPageAccess('control');
+$access = checkPageAccess('main');
 if (!$access['can_view']) accessDeniedPage();
 ?>
 <!DOCTYPE html>
@@ -11,24 +11,24 @@ if (!$access['can_view']) accessDeniedPage();
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Контроль — Новый Аналитический Комплекс</title>
+  <title>Новый Аналитический Комплекс</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <header class="top-nav">
-  <div class="brand">Новый Аналитический Комплекс</div>
-  <nav><a href="plan.php">План заседаний</a><a href="control.php" class="active">Контроль</a><a href="duty.php">График дежурств</a><a href="vacation.php">График отпусков</a></nav>
+  <a href="dashboard.php" class="brand">Новый Аналитический Комплекс</a>
+  <nav><a href="plan.php" class="active">План заседаний</a><a href="control.php">Контроль</a><a href="duty.php">График дежурств</a><a href="vacation.php">График отпусков</a></nav>
   <a href="settings.php" class="nav-settings">Настройки</a>
 </header>
 <main class="page">
   <section class="plan-board">
     <div class="board-controls">
-      <h1>Контроль за месяц</h1>
+      <h1>План заседаний и задач</h1>
       <div class="board-nav">
         <button id="prevWeek">← Назад</button>
         <button id="nextWeek">Вперёд →</button>
-        <button id="addMeetingBtn">+ Контроль за месяц</button>
+        <button id="addMeetingBtn">+ Заседание</button>
       </div>
     </div>
     <div class="table-outer">
@@ -44,16 +44,17 @@ if (!$access['can_view']) accessDeniedPage();
 
 <div id="meetingModal" class="modal hidden">
   <div class="modal-box">
-    <h3 id="meetingModalTitle">Создать контроль за месяц</h3>
+    <h3 id="meetingModalTitle">Создать заседание</h3>
     <input type="hidden" id="meetingId" />
-    <label>Название<input id="meetingName" /></label>
-    <label>Дата<input id="meetingDate" type="date" /></label>
+    <label>Название заседания<input id="meetingName" /></label>
+    <label>Дата заседания<input id="meetingDate" type="date" /></label>
+    <label>Тема заседания<textarea id="meetingTopic"></textarea></label>
     <label class="checkbox-label" id="useTemplateRow">
       <input type="checkbox" id="useTemplate" />
       На основе шаблона
     </label>
     <div class="modal-actions">
-      <button id="deleteMeetingBtn" class="btn-danger hidden">Удалить</button>
+      <button id="deleteMeetingBtn" class="btn-danger hidden">Удалить заседание</button>
       <div style="flex:1"></div>
       <button data-close="meetingModal">Отмена</button>
       <button id="saveMeeting">Сохранить</button>
@@ -106,6 +107,6 @@ if (!$access['can_view']) accessDeniedPage();
 <div id="dateRangePicker" class="date-picker hidden"></div>
 
 <script>const PAGE_CAN_EDIT = <?= $access['can_edit'] ? 'true' : 'false' ?>;</script>
-<script src="control.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
