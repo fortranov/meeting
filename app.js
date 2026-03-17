@@ -26,9 +26,40 @@ async function init() {
   if (typeof PAGE_CAN_EDIT !== 'undefined' && !PAGE_CAN_EDIT) {
     document.getElementById('addMeetingBtn').classList.add('hidden');
   }
+  initTooltip();
   bindEvents();
   await loadSiteSettings();
   await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
+}
+
+function initTooltip() {
+  const tip = document.createElement('div');
+  tip.id = 'rangeTooltip';
+  tip.className = 'range-tooltip';
+  document.body.appendChild(tip);
+
+  const tableWrap = document.querySelector('.table-body-wrap') || document.body;
+
+  tableWrap.addEventListener('mouseover', e => {
+    const cell = e.target.closest('[data-tooltip]');
+    if (!cell) return;
+    tip.textContent = cell.dataset.tooltip;
+    tip.classList.add('range-tooltip--visible');
+  });
+  tableWrap.addEventListener('mousemove', e => {
+    if (!tip.classList.contains('range-tooltip--visible')) return;
+    const x = e.clientX + 12;
+    const y = e.clientY + 16;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    tip.style.left = (x + tw > window.innerWidth  ? e.clientX - tw - 8 : x) + 'px';
+    tip.style.top  = (y + th > window.innerHeight ? e.clientY - th - 8 : y) + 'px';
+  });
+  tableWrap.addEventListener('mouseout', e => {
+    const cell = e.target.closest('[data-tooltip]');
+    if (!cell) return;
+    if (!cell.contains(e.relatedTarget)) tip.classList.remove('range-tooltip--visible');
+  });
 }
 
 async function loadSiteSettings() {
@@ -174,7 +205,7 @@ function renderTimeline() {
       </div>
       <div class="timeline-cell left-col left-2">${r.status ? statusPill(r.status) : ''}</div>
       <div class="timeline-cell left-col left-3">${formatPeriod(r.start, r.end)}</div>
-      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null)).join('')}
+      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null, r.responsible || '')).join('')}
     </div>`;
   }).join('');
 
@@ -249,6 +280,7 @@ function pushTaskRows(rows, task, meetingId, level, parentId = null, topLevelTas
     hasChildren: (task.children || []).length > 0,
     directionColor: task.direction_color || null,
     conflicts: task.conflicts || [],
+    responsible: task.responsible || '',
   });
   (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1, task.id, myTopLevelId));
 }
@@ -301,7 +333,7 @@ function isDoneStatus(status) {
   return st && Number(st.is_system) === 1;
 }
 
-function renderRangeCell(day, start, end, status = '', directionColor = null) {
+function renderRangeCell(day, start, end, status = '', directionColor = null, responsible = '') {
   const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d          = toISO(day);
   const meetingDay = meetingDates.has(d) ? 'meeting-day' : '';
@@ -317,7 +349,8 @@ function renderRangeCell(day, start, end, status = '', directionColor = null) {
     cellStyle = ` style="background:rgba(${r},${g},${b},0.08)"`;
     fillStyle = ` style="border-color:${directionColor};background:rgba(${r},${g},${b},0.07)"`;
   }
-  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"${cellStyle}><div class="day-fill"${fillStyle}></div></div>`;
+  const tooltipAttr = responsible ? ` data-tooltip="${escapeHtml(responsible)}"` : '';
+  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"${cellStyle}${tooltipAttr}><div class="day-fill"${fillStyle}></div></div>`;
 }
 
 function pillStyleFromColor(hex) {
