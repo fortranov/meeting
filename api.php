@@ -184,6 +184,9 @@ try {
         case 'dashboard_tasks':
             dashboardTasksAction();
             break;
+        case 'dashboard_control_tasks':
+            dashboardControlTasksAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -1229,6 +1232,27 @@ function dashboardTasksAction(): void
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM task t
          LEFT JOIN task_person tp ON tp.task_id = t.id
+         LEFT JOIN person p ON p.id = tp.person_id
+         WHERE t.start_date <= :today AND t.end_date >= :today
+         GROUP BY t.id
+         ORDER BY t.end_date, t.start_date, t.id"
+    );
+    $stmt->execute([':today' => $today]);
+    $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    jsonResponse(['tasks' => $tasks]);
+}
+
+function dashboardControlTasksAction(): void
+{
+    $pdo   = db();
+    $today = date('Y-m-d');
+
+    $stmt = $pdo->prepare(
+        "SELECT t.id, t.title, t.start_date, t.end_date,
+                GROUP_CONCAT(p.last_name, ', ') AS responsible
+         FROM control_task t
+         LEFT JOIN control_task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          WHERE t.start_date <= :today AND t.end_date >= :today
          GROUP BY t.id
