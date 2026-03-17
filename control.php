@@ -17,7 +17,7 @@ if (!$access['can_view']) accessDeniedPage();
 </head>
 <body>
 <header class="top-nav">
-  <a href="dashboard.php" class="brand">Ежедневник</a>
+  <a href="dashboard.php" class="brand"><span class="brand-mark" aria-hidden="true">📘</span><span class="brand-text">Ежедневник</span></a>
   <nav><a href="plan.php">План заседаний</a><a href="control.php" class="active">Контроль</a><a href="duty.php">График дежурств</a><a href="vacation.php">График отпусков</a></nav>
   <a href="settings.php" class="nav-settings">Настройки</a>
 </header>
