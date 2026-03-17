@@ -93,8 +93,11 @@ async function renderTodayBlock(el) {
 
   try {
     const data = await (await fetch('api.php?action=dashboard_today')).json();
-    const vacation = Number(data.vacation) || 0;
-    const present  = (Number(data.total) || 0) - vacation;
+    const vacation     = Number(data.vacation)      || 0;
+    const businessTrip = Number(data.business_trip) || 0;
+    const sickLeave    = Number(data.sick_leave)    || 0;
+    const study        = Number(data.study)         || 0;
+    const present      = (Number(data.total) || 0) - vacation - businessTrip - sickLeave - study;
 
     el.querySelector('.dash-block-body').innerHTML = `
       <div class="dash-stat-row">
@@ -104,6 +107,18 @@ async function renderTodayBlock(el) {
       <div class="dash-stat-row">
         <span class="dash-stat-label">Отпуск</span>
         <span class="dash-stat-val">${vacation}</span>
+      </div>
+      <div class="dash-stat-row">
+        <span class="dash-stat-label">Командировка</span>
+        <span class="dash-stat-val">${businessTrip}</span>
+      </div>
+      <div class="dash-stat-row">
+        <span class="dash-stat-label">Больничный</span>
+        <span class="dash-stat-val">${sickLeave}</span>
+      </div>
+      <div class="dash-stat-row">
+        <span class="dash-stat-label">Учёба</span>
+        <span class="dash-stat-val">${study}</span>
       </div>`;
   } catch {
     el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
