@@ -93,33 +93,29 @@ async function renderTodayBlock(el) {
 
   try {
     const data = await (await fetch('api.php?action=dashboard_today')).json();
-    const vacation     = Number(data.vacation)      || 0;
-    const businessTrip = Number(data.business_trip) || 0;
-    const sickLeave    = Number(data.sick_leave)    || 0;
-    const study        = Number(data.study)         || 0;
-    const present      = (Number(data.total) || 0) - vacation - businessTrip - sickLeave - study;
+    const vacation     = data.vacation      || { count: 0, names: [] };
+    const businessTrip = data.business_trip || { count: 0, names: [] };
+    const sickLeave    = data.sick_leave    || { count: 0, names: [] };
+    const study        = data.study         || { count: 0, names: [] };
+    const present      = (Number(data.total) || 0)
+                       - vacation.count - businessTrip.count - sickLeave.count - study.count;
+
+    const detailRow = (label, count, names) => `
+      <div class="dash-stat-row dash-stat-row--detail">
+        <span class="dash-stat-label">${label}</span>
+        <span class="dash-stat-val">${count}</span>
+        <span class="dash-stat-names">${names.join(', ')}</span>
+      </div>`;
 
     el.querySelector('.dash-block-body').innerHTML = `
       <div class="dash-stat-row">
         <span class="dash-stat-label">В наличии</span>
         <span class="dash-stat-val">${present}</span>
       </div>
-      <div class="dash-stat-row">
-        <span class="dash-stat-label">Отпуск</span>
-        <span class="dash-stat-val">${vacation}</span>
-      </div>
-      <div class="dash-stat-row">
-        <span class="dash-stat-label">Командировка</span>
-        <span class="dash-stat-val">${businessTrip}</span>
-      </div>
-      <div class="dash-stat-row">
-        <span class="dash-stat-label">Больничный</span>
-        <span class="dash-stat-val">${sickLeave}</span>
-      </div>
-      <div class="dash-stat-row">
-        <span class="dash-stat-label">Учёба</span>
-        <span class="dash-stat-val">${study}</span>
-      </div>`;
+      ${detailRow('Отпуск',      vacation.count,     vacation.names)}
+      ${detailRow('Командировка',businessTrip.count, businessTrip.names)}
+      ${detailRow('Больничный',  sickLeave.count,    sickLeave.names)}
+      ${detailRow('Учёба',       study.count,        study.names)}`;
   } catch {
     el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
   }

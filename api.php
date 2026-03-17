@@ -1188,20 +1188,24 @@ function dashboardTodayAction(): void
 
     $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person')->fetch()['c'];
 
-    $countByType = static function (string $type) use ($pdo, $today): int {
+    $fetchType = static function (string $type) use ($pdo, $today): array {
         $stmt = $pdo->prepare(
-            "SELECT COUNT(DISTINCT person_id) AS c FROM duty_event
-             WHERE event_type = :type
-               AND start_date <= :today AND end_date >= :today"
+            "SELECT p.last_name FROM duty_event de
+             JOIN person p ON p.id = de.person_id
+             WHERE de.event_type = :type
+               AND de.start_date <= :today AND de.end_date >= :today
+             GROUP BY de.person_id
+             ORDER BY p.last_name"
         );
         $stmt->execute([':type' => $type, ':today' => $today]);
-        return (int)$stmt->fetch()['c'];
+        $names = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return ['count' => count($names), 'names' => $names];
     };
 
-    $vacation      = $countByType('vacation');
-    $businessTrip  = $countByType('business_trip');
-    $sickLeave     = $countByType('sick_leave');
-    $study         = $countByType('study');
+    $vacation     = $fetchType('vacation');
+    $businessTrip = $fetchType('business_trip');
+    $sickLeave    = $fetchType('sick_leave');
+    $study        = $fetchType('study');
 
     jsonResponse([
         'total'         => $total,
