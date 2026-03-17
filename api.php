@@ -187,6 +187,9 @@ try {
         case 'dashboard_control_tasks':
             dashboardControlTasksAction();
             break;
+        case 'dashboard_duty':
+            dashboardDutyAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -1262,4 +1265,41 @@ function dashboardControlTasksAction(): void
     $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     jsonResponse(['tasks' => $tasks]);
+}
+
+function dashboardDutyAction(): void
+{
+    $pdo   = db();
+    $today = new DateTime('today');
+
+    // 8 dates: yesterday (-1), today (0), next 6 days (+1..+6)
+    $dates = [];
+    for ($i = -1; $i <= 6; $i++) {
+        $dates[] = (clone $today)->modify("{$i} days")->format('Y-m-d');
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT de.start_date, de.end_date, p.last_name
+         FROM duty_event de
+         JOIN person p ON p.id = de.person_id
+         WHERE de.event_type = 'duty'
+           AND de.start_date <= :end AND de.end_date >= :start
+         ORDER BY de.start_date"
+    );
+    $stmt->execute([':start' => $dates[0], ':end' => $dates[7]]);
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $days = [];
+    foreach ($dates as $date) {
+        $lastName = null;
+        foreach ($events as $ev) {
+            if ($ev['start_date'] <= $date && $ev['end_date'] >= $date) {
+                $lastName = $ev['last_name'];
+                break;
+            }
+        }
+        $days[] = ['date' => $date, 'last_name' => $lastName];
+    }
+
+    jsonResponse(['days' => $days]);
 }
