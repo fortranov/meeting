@@ -2,10 +2,13 @@
   display: grid;
   grid-template-columns: 40% 60%;
   align-items: center;
-  height: 36px;
+  height: 28px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   box-sizing: border-box;
+}
+.dash-duty-row--today {
+  height: 36px;
 }
 .dash-duty-row:last-child {
   border-bottom: none;
