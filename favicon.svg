@@ -1,3 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <polygon points="16,4 30,28 2,28" fill="#2b68ff" rx="2"/>
+  <!-- Book cover -->
+  <rect x="5" y="3" width="19" height="26" rx="2" fill="#2563eb"/>
+  <!-- Spine -->
+  <rect x="5" y="3" width="4" height="26" rx="1" fill="#1d4ed8"/>
+  <!-- Pages edge -->
+  <rect x="22" y="4" width="2" height="24" rx="1" fill="#bfdbfe"/>
+  <!-- Lines on cover -->
+  <rect x="11" y="10" width="10" height="1.5" rx="0.75" fill="#93c5fd"/>
+  <rect x="11" y="13.5" width="8" height="1.5" rx="0.75" fill="#93c5fd"/>
+  <rect x="11" y="17" width="10" height="1.5" rx="0.75" fill="#93c5fd"/>
 </svg>
