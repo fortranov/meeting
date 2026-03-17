@@ -14,7 +14,7 @@ db();
 </head>
 <body>
 <header class="top-nav">
-  <a href="dashboard.php" class="brand active-brand">Ежедневник</a>
+  <a href="dashboard.php" class="brand active-brand"><span class="brand-mark" aria-hidden="true">📘</span><span class="brand-text">Ежедневник</span></a>
   <nav>
     <a href="plan.php">План заседаний</a>
     <a href="control.php">Контроль</a>
