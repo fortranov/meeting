@@ -24,7 +24,7 @@ function checkPageAccess(string $page): array
         return ['can_view' => true, 'can_edit' => true];
     }
 
-    $allowed = ['main', 'duty', 'settings', 'vacation'];
+    $allowed = ['main', 'duty', 'settings', 'vacation', 'control'];
     if (!in_array($page, $allowed, true)) {
         return ['can_view' => true, 'can_edit' => true];
     }

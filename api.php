@@ -136,6 +136,48 @@ try {
             requirePost();
             siteSettingsSaveAction();
             break;
+        case 'control_timeline':
+            controlTimelineAction();
+            break;
+        case 'control_save':
+            requirePost();
+            controlSaveAction();
+            break;
+        case 'control_delete':
+            requirePost();
+            controlDeleteAction();
+            break;
+        case 'control_task_save':
+            requirePost();
+            controlTaskSaveAction();
+            break;
+        case 'control_task_delete':
+            requirePost();
+            controlTaskDeleteAction();
+            break;
+        case 'control_task_dates':
+            requirePost();
+            controlTaskDatesAction();
+            break;
+        case 'control_task_reorder':
+            requirePost();
+            controlTaskReorderAction();
+            break;
+        case 'control_template_tasks':
+            controlTemplateTasksAction();
+            break;
+        case 'control_template_task_save':
+            requirePost();
+            controlTemplateTaskSaveAction();
+            break;
+        case 'control_template_task_delete':
+            requirePost();
+            controlTemplateTaskDeleteAction();
+            break;
+        case 'control_template_task_reorder':
+            requirePost();
+            controlTemplateTaskReorderAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -242,7 +284,8 @@ function personsAction(): void
 
     $fields = 'id, first_name, last_name, full_name, birth_date, direction_id, sort_order,
                ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
-               page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit';
+               page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit,
+               page_control_view, page_control_edit';
     if ($q === '') {
         $stmt = $pdo->query("SELECT $fields FROM person ORDER BY sort_order, id LIMIT 50");
     } else {
@@ -490,6 +533,8 @@ function personSaveAction(): void
     $pse = (int)!empty($payload['page_settings_edit']);
     $pvv = (int)!empty($payload['page_vacation_view']);
     $pve = (int)!empty($payload['page_vacation_edit']);
+    $pcv = (int)!empty($payload['page_control_view']);
+    $pce = (int)!empty($payload['page_control_edit']);
 
     if ($fullName === '') jsonResponse(['error' => 'Имя не может быть пустым'], 422);
 
@@ -498,24 +543,26 @@ function personSaveAction(): void
             'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, birth_date=:bd,
              direction_id=:dir, ip=:ip, page_main_view=:pmv, page_main_edit=:pme,
              page_duty_view=:pdv, page_duty_edit=:pde, page_settings_view=:psv,
-             page_settings_edit=:pse, page_vacation_view=:pvv, page_vacation_edit=:pve WHERE id=:id'
+             page_settings_edit=:pse, page_vacation_view=:pvv, page_vacation_edit=:pve,
+             page_control_view=:pcv, page_control_edit=:pce WHERE id=:id'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
             ':bd' => $birthDate, ':dir' => $dirId, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
-            ':pvv' => $pvv, ':pve' => $pve, ':id' => $id]);
+            ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce, ':id' => $id]);
     } else {
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
         $pdo->prepare(
             'INSERT INTO person (first_name, last_name, full_name, birth_date, direction_id, sort_order,
              ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
-             page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit)
-             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse,:pvv,:pve)'
+             page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit,
+             page_control_view, page_control_edit)
+             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse,:pvv,:pve,:pcv,:pce)'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
             ':bd' => $birthDate, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
-            ':pvv' => $pvv, ':pve' => $pve]);
+            ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce]);
         $id = (int)$pdo->lastInsertId();
     }
     jsonResponse(['ok' => true, 'id' => $id]);
@@ -840,5 +887,288 @@ function siteSettingsSaveAction(): void
         $pdo->prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (:k, :v)')
             ->execute([':k' => $key, ':v' => (string)$payload[$key]]);
     }
+    jsonResponse(['ok' => true]);
+}
+
+// ─── Control ──────────────────────────────────────────────────────────────────
+
+function controlTimelineAction(): void
+{
+    $pdo   = db();
+    $start = $_GET['start'] ?? date('Y-m-01');
+    $days  = max(1, min(60, (int)($_GET['days'] ?? 35)));
+
+    $controls = $pdo->query('SELECT id, title, control_date FROM control ORDER BY control_date, id')->fetchAll();
+
+    $taskRows = $pdo->query(
+        'SELECT t.id, t.control_id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+                GROUP_CONCAT(p.full_name, ", ") AS responsible,
+                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids,
+                (SELECT d.color FROM control_task_person tp2
+                 JOIN person p2 ON p2.id = tp2.person_id
+                 LEFT JOIN direction d ON d.id = p2.direction_id
+                 WHERE tp2.task_id = t.id
+                 ORDER BY tp2.person_id LIMIT 1) AS direction_color
+         FROM control_task t
+         LEFT JOIN control_task_person tp ON tp.task_id = t.id
+         LEFT JOIN person p ON p.id = tp.person_id
+         GROUP BY t.id
+         ORDER BY t.sort_order, t.start_date, t.id'
+    )->fetchAll();
+
+    $conflictsByTask = [];
+    try {
+        $cRows = $pdo->query(
+            'SELECT tp.task_id, p.full_name, de.event_type, de.start_date AS ev_start, de.end_date AS ev_end
+             FROM control_task_person tp
+             JOIN person p  ON p.id  = tp.person_id
+             JOIN duty_event de ON de.person_id = tp.person_id
+             JOIN control_task t ON t.id = tp.task_id
+             WHERE de.event_type IN (\'vacation\', \'study\')
+               AND DATE(de.start_date) <= DATE(t.end_date)
+               AND DATE(de.end_date)   >= DATE(t.start_date)
+             ORDER BY tp.task_id, p.full_name, de.start_date'
+        )->fetchAll();
+        foreach ($cRows as $r) {
+            $conflictsByTask[(int)$r['task_id']][] = [
+                'person'     => $r['full_name'],
+                'event_type' => $r['event_type'],
+                'start'      => $r['ev_start'],
+                'end'        => $r['ev_end'],
+            ];
+        }
+    } catch (\Throwable) {}
+
+    $tasksByControl = [];
+    foreach ($taskRows as $task) {
+        $task['responsible'] = $task['responsible'] ?? '';
+        $task['person_ids']  = $task['person_ids']  ?? '';
+        $task['conflicts']   = $conflictsByTask[(int)$task['id']] ?? [];
+        $tasksByControl[(int)$task['control_id']][] = $task;
+    }
+
+    $result = [];
+    foreach ($controls as $control) {
+        $cid   = (int)$control['id'];
+        $tasks = $tasksByControl[$cid] ?? [];
+        $indexed = [];
+        foreach ($tasks as $task) {
+            $task['children'] = [];
+            $indexed[(int)$task['id']] = $task;
+        }
+        $roots = [];
+        foreach ($indexed as $id => &$task) {
+            $parentId = $task['parent_task_id'] !== null ? (int)$task['parent_task_id'] : null;
+            if ($parentId && isset($indexed[$parentId])) {
+                $indexed[$parentId]['children'][] = &$task;
+            } else {
+                $roots[] = &$task;
+            }
+        }
+        $result[] = [
+            'id'           => $cid,
+            'title'        => $control['title'],
+            'control_date' => $control['control_date'],
+            'tasks'        => $roots,
+        ];
+    }
+
+    jsonResponse(['start' => $start, 'days' => $days, 'controls' => $result]);
+}
+
+function controlSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+
+    $id    = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $title = trim((string)($payload['title'] ?? ''));
+    $date  = trim((string)($payload['control_date'] ?? ''));
+
+    if ($title === '' || $date === '') {
+        jsonResponse(['error' => 'Заполните название и дату'], 422);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE control SET title=:title, control_date=:control_date, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':title' => $title, ':control_date' => $date, ':id' => $id]);
+    } else {
+        $pdo->prepare('INSERT INTO control (title, control_date) VALUES (:title, :control_date)')
+            ->execute([':title' => $title, ':control_date' => $date]);
+        $id = (int)$pdo->lastInsertId();
+        if (!empty($payload['use_template'])) {
+            createControlTasksFromTemplate($pdo, $id, $date);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function controlDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM control WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function controlTaskSaveAction(): void
+{
+    $pdo       = db();
+    $payload   = getJsonPayload();
+
+    $id        = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $controlId = (int)($payload['control_id'] ?? 0);
+    $parentId  = isset($payload['parent_task_id']) && $payload['parent_task_id'] !== '' ? (int)$payload['parent_task_id'] : null;
+    $title     = trim((string)($payload['title'] ?? ''));
+    $start     = trim((string)($payload['start_date'] ?? ''));
+    $end       = trim((string)($payload['end_date'] ?? ''));
+    $status    = trim((string)($payload['status'] ?? 'В работе'));
+    $persons   = is_array($payload['person_ids'] ?? null) ? $payload['person_ids'] : [];
+
+    if ($controlId <= 0 || $title === '' || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Заполните поля задачи'], 422);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE control_task SET title=:title, start_date=:start_date, end_date=:end_date, status=:status, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':title' => $title, ':start_date' => $start, ':end_date' => $end, ':status' => $status, ':id' => $id]);
+    } else {
+        if ($parentId !== null) {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM control_task WHERE parent_task_id=:pid');
+            $sortStmt->execute([':pid' => $parentId]);
+        } else {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM control_task WHERE control_id=:cid AND parent_task_id IS NULL');
+            $sortStmt->execute([':cid' => $controlId]);
+        }
+        $sortOrder = (int)($sortStmt->fetch()['next'] ?? 1);
+
+        $pdo->prepare('INSERT INTO control_task (control_id, parent_task_id, title, start_date, end_date, status, sort_order) VALUES (:control_id,:parent_id,:title,:start_date,:end_date,:status,:sort_order)')
+            ->execute([
+                ':control_id' => $controlId,
+                ':parent_id'  => $parentId,
+                ':title'      => $title,
+                ':start_date' => $start,
+                ':end_date'   => $end,
+                ':status'     => $status,
+                ':sort_order' => $sortOrder,
+            ]);
+        $id = (int)$pdo->lastInsertId();
+    }
+
+    $pdo->prepare('DELETE FROM control_task_person WHERE task_id=:id')->execute([':id' => $id]);
+    if ($persons) {
+        $link = $pdo->prepare('INSERT INTO control_task_person (task_id, person_id) VALUES (:task_id,:person_id)');
+        foreach ($persons as $pid) {
+            $link->execute([':task_id' => $id, ':person_id' => (int)$pid]);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function controlTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM control_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function controlTaskDatesAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = (int)($payload['id'] ?? 0);
+    $start   = trim((string)($payload['start_date'] ?? ''));
+    $end     = trim((string)($payload['end_date'] ?? ''));
+    if ($id <= 0 || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Неверные данные'], 422);
+    }
+    $pdo->prepare('UPDATE control_task SET start_date=:s, end_date=:e, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+        ->execute([':s' => $start, ':e' => $end, ':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function controlTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE control_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function createControlTasksFromTemplate(PDO $pdo, int $controlId, string $controlDate): void
+{
+    $tasks = $pdo->query('SELECT * FROM control_template_task ORDER BY sort_order, id')->fetchAll();
+    if (!$tasks) return;
+
+    $defaultStatus = $pdo->query("SELECT name FROM task_status WHERE is_system=0 ORDER BY sort_order, id LIMIT 1")->fetch()['name'] ?? 'В работе';
+    $stmt = $pdo->prepare('INSERT INTO control_task (control_id, parent_task_id, title, start_date, end_date, status) VALUES (:cid, :pid, :title, :start, :end, :status)');
+    $controlDt  = new DateTime($controlDate);
+    $prevTaskId = null;
+
+    foreach ($tasks as $tmpl) {
+        $start    = (clone $controlDt)->modify('-' . (int)$tmpl['days_before'] . ' days');
+        $end      = (clone $start)->modify('+' . max(0, (int)$tmpl['duration_days'] - 1) . ' days');
+        $parentId = ((int)$tmpl['is_subtask'] && $prevTaskId !== null) ? $prevTaskId : null;
+        $stmt->execute([
+            ':cid'    => $controlId,
+            ':pid'    => $parentId,
+            ':title'  => $tmpl['title'],
+            ':start'  => $start->format('Y-m-d'),
+            ':end'    => $end->format('Y-m-d'),
+            ':status' => $defaultStatus,
+        ]);
+        $prevTaskId = (int)$pdo->lastInsertId();
+    }
+}
+
+function controlTemplateTasksAction(): void
+{
+    $rows = db()->query('SELECT id, title, days_before, duration_days, is_subtask, sort_order FROM control_template_task ORDER BY sort_order, id')->fetchAll();
+    jsonResponse(['tasks' => $rows]);
+}
+
+function controlTemplateTaskSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $title   = trim((string)($payload['title'] ?? ''));
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+    $daysBefore   = max(0, (int)($payload['days_before']   ?? 0));
+    $durationDays = max(1, (int)($payload['duration_days'] ?? 1));
+    $isSubtask    = (int)(!empty($payload['is_subtask']));
+
+    if ($id) {
+        $pdo->prepare('UPDATE control_template_task SET title=:t, days_before=:db, duration_days=:dd, is_subtask=:sub WHERE id=:id')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM control_template_task')->fetch()['m']);
+        $pdo->prepare('INSERT INTO control_template_task (title, days_before, duration_days, is_subtask, sort_order) VALUES (:t,:db,:dd,:sub,:sort)')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function controlTemplateTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM control_template_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function controlTemplateTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE control_template_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
     jsonResponse(['ok' => true]);
 }

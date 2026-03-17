@@ -57,6 +57,8 @@ function migrateDatabase(PDO $pdo): void
     if (!in_array('birth_date',         $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN birth_date TEXT");
     if (!in_array('page_vacation_view', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_vacation_view INTEGER NOT NULL DEFAULT 0");
     if (!in_array('page_vacation_edit', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_vacation_edit INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_control_view', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_control_view INTEGER NOT NULL DEFAULT 0");
+    if (!in_array('page_control_edit', $cols)) $pdo->exec("ALTER TABLE person ADD COLUMN page_control_edit INTEGER NOT NULL DEFAULT 0");
 
     // Recreate task table if CHECK constraint present (remove it)
     $taskSql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='task'")->fetch()['sql'] ?? '';
@@ -127,6 +129,46 @@ function migrateDatabase(PDO $pdo): void
     $pdo->exec("CREATE TABLE IF NOT EXISTS app_settings (
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL DEFAULT ''
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS control (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        title        TEXT    NOT NULL,
+        control_date TEXT    NOT NULL,
+        created_at   TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at   TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS control_task (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        control_id     INTEGER NOT NULL,
+        parent_task_id INTEGER NULL,
+        title          TEXT    NOT NULL,
+        start_date     TEXT    NOT NULL,
+        end_date       TEXT    NOT NULL,
+        status         TEXT    NOT NULL DEFAULT 'В работе',
+        sort_order     INTEGER NOT NULL DEFAULT 0,
+        created_at     TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at     TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (control_id)     REFERENCES control(id)      ON DELETE CASCADE,
+        FOREIGN KEY (parent_task_id) REFERENCES control_task(id) ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS control_task_person (
+        task_id   INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        PRIMARY KEY (task_id, person_id),
+        FOREIGN KEY (task_id)   REFERENCES control_task(id) ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES person(id)       ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS control_template_task (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        title         TEXT    NOT NULL,
+        days_before   INTEGER NOT NULL DEFAULT 0,
+        duration_days INTEGER NOT NULL DEFAULT 1,
+        is_subtask    INTEGER NOT NULL DEFAULT 0,
+        sort_order    INTEGER NOT NULL DEFAULT 0
     )");
 
     if ((int)$pdo->query('SELECT COUNT(*) AS c FROM task_status')->fetch()['c'] === 0) {

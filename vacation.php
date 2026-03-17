@@ -20,6 +20,7 @@ if (!$access['can_view']) accessDeniedPage();
   <div class="brand">Новый Аналитический Комплекс</div>
   <nav>
     <a href="index.php">План заседаний</a>
+    <a href="control.php">Контроль</a>
     <a href="duty.php">График дежурств</a>
     <a href="vacation.php" class="active">График отпусков</a>
   </nav>

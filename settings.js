@@ -1,16 +1,17 @@
 const PALETTE = ['#3b82f6','#f97316','#22c55e','#a855f7','#ec4899','#14b8a6','#f59e0b','#6366f1','#ef4444','#84cc16'];
 
-let directions     = [];
-let statuses       = [];
-let persons        = [];
-let templateTasks  = [];
-let holidays       = [];
-let colorSizeData  = {};
+let directions            = [];
+let statuses              = [];
+let persons               = [];
+let templateTasks         = [];
+let controlTemplateTasks  = [];
+let holidays              = [];
+let colorSizeData         = {};
 
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadHolidays(), loadSiteSettings()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadControlTemplateTasks(), loadHolidays(), loadSiteSettings()]);
 }
 
 function bindEvents() {
@@ -30,6 +31,11 @@ function bindEvents() {
   document.getElementById('showAddTemplateTask').onclick   = () => openTemplateTaskModal();
   document.getElementById('saveTemplateTaskBtn').onclick   = saveTemplateTask;
   document.getElementById('deleteTemplateTaskBtn').onclick = () => deleteTemplateTask(Number(document.getElementById('templateTaskId').value));
+
+  // Control template tasks
+  document.getElementById('showAddControlTemplateTask').onclick   = () => openControlTemplateTaskModal();
+  document.getElementById('saveControlTemplateTaskBtn').onclick   = saveControlTemplateTask;
+  document.getElementById('deleteControlTemplateTaskBtn').onclick = () => deleteControlTemplateTask(Number(document.getElementById('controlTemplateTaskId').value));
 
   // Person modal
   document.getElementById('showAddPerson').onclick = () => openPersonModal();
@@ -261,7 +267,7 @@ function openPersonModal(id = null) {
   document.getElementById('personBirthDate').value  = '';
   document.getElementById('personDirection').value  = '';
   document.getElementById('personIp').value         = '';
-  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit']
+  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit','permCtrlView','permCtrlEdit']
     .forEach(eid => { document.getElementById(eid).checked = false; });
 
   if (id) {
@@ -280,6 +286,8 @@ function openPersonModal(id = null) {
       document.getElementById('permSettEdit').checked  = !!Number(p.page_settings_edit);
       document.getElementById('permVacView').checked   = !!Number(p.page_vacation_view);
       document.getElementById('permVacEdit').checked   = !!Number(p.page_vacation_edit);
+      document.getElementById('permCtrlView').checked  = !!Number(p.page_control_view);
+      document.getElementById('permCtrlEdit').checked  = !!Number(p.page_control_edit);
     }
   }
 }
@@ -293,14 +301,16 @@ async function savePerson() {
     birth_date:         document.getElementById('personBirthDate').value || null,
     direction_id:       document.getElementById('personDirection').value || null,
     ip:                 document.getElementById('personIp').value.trim(),
-    page_main_view:     document.getElementById('permMainView').checked ? 1 : 0,
-    page_main_edit:     document.getElementById('permMainEdit').checked ? 1 : 0,
-    page_duty_view:     document.getElementById('permDutyView').checked ? 1 : 0,
-    page_duty_edit:     document.getElementById('permDutyEdit').checked ? 1 : 0,
-    page_settings_view:  document.getElementById('permSettView').checked ? 1 : 0,
-    page_settings_edit:  document.getElementById('permSettEdit').checked ? 1 : 0,
-    page_vacation_view:  document.getElementById('permVacView').checked  ? 1 : 0,
-    page_vacation_edit:  document.getElementById('permVacEdit').checked  ? 1 : 0,
+    page_main_view:     document.getElementById('permMainView').checked  ? 1 : 0,
+    page_main_edit:     document.getElementById('permMainEdit').checked  ? 1 : 0,
+    page_duty_view:     document.getElementById('permDutyView').checked  ? 1 : 0,
+    page_duty_edit:     document.getElementById('permDutyEdit').checked  ? 1 : 0,
+    page_settings_view: document.getElementById('permSettView').checked  ? 1 : 0,
+    page_settings_edit: document.getElementById('permSettEdit').checked  ? 1 : 0,
+    page_vacation_view: document.getElementById('permVacView').checked   ? 1 : 0,
+    page_vacation_edit: document.getElementById('permVacEdit').checked   ? 1 : 0,
+    page_control_view:  document.getElementById('permCtrlView').checked  ? 1 : 0,
+    page_control_edit:  document.getElementById('permCtrlEdit').checked  ? 1 : 0,
   };
   if (!payload.first_name && !payload.last_name) return alert('Введите имя или фамилию');
   await api('person_save', payload);
@@ -411,6 +421,93 @@ async function deleteTemplateTask(id) {
   await api('template_task_delete', { id });
   document.getElementById('templateTaskModal').classList.add('hidden');
   await loadTemplateTasks();
+}
+
+// ─── Control Template Tasks ───────────────────────────────
+async function loadControlTemplateTasks() {
+  const data = await api('control_template_tasks');
+  controlTemplateTasks = data.tasks || [];
+  renderControlTemplateTasks();
+}
+
+function renderControlTemplateTasks() {
+  const list = document.getElementById('controlTemplateTasksList');
+  if (!controlTemplateTasks.length) {
+    list.innerHTML = '<div class="empty-hint">Шаблон пуст — добавьте задачи</div>';
+    return;
+  }
+  list.innerHTML = controlTemplateTasks.map(t => `
+    <div class="setting-item" data-id="${t.id}" draggable="true">
+      <span class="drag-handle" title="Перетащить">⠿</span>
+      ${Number(t.is_subtask) ? '<span class="subtask-badge" title="Подзадача">↳</span>' : '<span class="subtask-spacer"></span>'}
+      <div class="tmpl-info">
+        <span class="tmpl-title">${escHtml(t.title)}</span>
+        <span class="tmpl-meta">за ${t.days_before} дн. до · ${t.duration_days} дн.</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn-icon-sm btn-edit" data-id="${t.id}" title="Редактировать">✎</button>
+        <button class="btn-icon-del" data-id="${t.id}" title="Удалить">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.btn-edit').forEach(btn =>
+    btn.onclick = () => openControlTemplateTaskModal(Number(btn.dataset.id))
+  );
+  list.querySelectorAll('.btn-icon-del').forEach(btn =>
+    btn.onclick = () => deleteControlTemplateTask(Number(btn.dataset.id))
+  );
+  setupDrag(list, controlTemplateTasks, 'control_template_task_reorder', () => loadControlTemplateTasks());
+}
+
+function openControlTemplateTaskModal(id = null) {
+  document.getElementById('controlTemplateTaskModal').classList.remove('hidden');
+  document.getElementById('controlTemplateTaskModalTitle').textContent = id ? 'Редактировать задачу шаблона' : 'Добавить задачу в шаблон контроля';
+  document.getElementById('controlTemplateTaskId').value = id || '';
+  document.getElementById('ctmplTitle').value        = '';
+  document.getElementById('ctmplDaysBefore').value   = 0;
+  document.getElementById('ctmplDuration').value     = 1;
+  document.getElementById('deleteControlTemplateTaskBtn').classList.toggle('hidden', !id);
+
+  const subtaskCb = document.getElementById('ctmplIsSubtask');
+  subtaskCb.checked = false;
+
+  if (id) {
+    const t = controlTemplateTasks.find(x => Number(x.id) === id);
+    if (t) {
+      document.getElementById('ctmplTitle').value      = t.title;
+      document.getElementById('ctmplDaysBefore').value = t.days_before;
+      document.getElementById('ctmplDuration').value   = t.duration_days;
+      subtaskCb.checked  = Boolean(Number(t.is_subtask));
+      subtaskCb.disabled = Number(controlTemplateTasks[0]?.id) === id;
+    }
+  } else {
+    subtaskCb.disabled = controlTemplateTasks.length === 0;
+  }
+}
+
+async function saveControlTemplateTask() {
+  const id    = document.getElementById('controlTemplateTaskId').value;
+  const title = document.getElementById('ctmplTitle').value.trim();
+  if (!title) return alert('Введите название задачи');
+  const payload = {
+    id:            id || undefined,
+    title,
+    days_before:   Math.max(0, Number(document.getElementById('ctmplDaysBefore').value) || 0),
+    duration_days: Math.max(1, Number(document.getElementById('ctmplDuration').value)   || 1),
+    is_subtask:    document.getElementById('ctmplIsSubtask').checked ? 1 : 0,
+  };
+  await api('control_template_task_save', payload);
+  document.getElementById('controlTemplateTaskModal').classList.add('hidden');
+  await loadControlTemplateTasks();
+}
+
+async function deleteControlTemplateTask(id) {
+  if (!id || !confirm('Удалить задачу из шаблона?')) return;
+  await api('control_template_task_delete', { id });
+  document.getElementById('controlTemplateTaskModal').classList.add('hidden');
+  await loadControlTemplateTasks();
 }
 
 // ─── Holidays ─────────────────────────────────────────────

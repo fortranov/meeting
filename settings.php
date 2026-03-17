@@ -20,6 +20,7 @@ if (!$access['can_view']) accessDeniedPage();
   <div class="brand">Новый Аналитический Комплекс</div>
   <nav>
     <a href="index.php">План заседаний</a>
+    <a href="control.php">Контроль</a>
     <a href="duty.php">График дежурств</a>
     <a href="vacation.php">График отпусков</a>
   </nav>
@@ -87,6 +88,15 @@ if (!$access['can_view']) accessDeniedPage();
 
     <section class="settings-card">
       <div class="settings-card-header">
+        <h2>Шаблон контроля за месяц</h2>
+        <button class="btn-add" id="showAddControlTemplateTask">+ Добавить задачу</button>
+      </div>
+      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового контроля за месяц с опцией «На основе шаблона».</p>
+      <div id="controlTemplateTasksList" class="settings-list"></div>
+    </section>
+
+    <section class="settings-card">
+      <div class="settings-card-header">
         <h2>Цвета и размеры</h2>
       </div>
       <div id="colorSizeSettings" class="cs-grid"></div>
@@ -138,6 +148,11 @@ if (!$access['can_view']) accessDeniedPage();
             <td><input type="checkbox" id="permVacView" /></td>
             <td><input type="checkbox" id="permVacEdit" /></td>
           </tr>
+          <tr>
+            <td>Контроль</td>
+            <td><input type="checkbox" id="permCtrlView" /></td>
+            <td><input type="checkbox" id="permCtrlEdit" /></td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -179,6 +194,29 @@ if (!$access['can_view']) accessDeniedPage();
       <div style="flex:1"></div>
       <button data-close="templateTaskModal">Отмена</button>
       <button id="saveTemplateTaskBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Control template task modal -->
+<div id="controlTemplateTaskModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="controlTemplateTaskModalTitle">Добавить задачу в шаблон контроля</h3>
+    <input type="hidden" id="controlTemplateTaskId" />
+    <label>Название задачи<input id="ctmplTitle" /></label>
+    <div class="row2">
+      <label>Дней до контроля<input id="ctmplDaysBefore" type="number" min="0" value="0" /></label>
+      <label>Длительность (дней)<input id="ctmplDuration" type="number" min="1" value="1" /></label>
+    </div>
+    <label class="checkbox-label">
+      <input type="checkbox" id="ctmplIsSubtask" />
+      Подзадача (дочерняя для предыдущей задачи в списке)
+    </label>
+    <div class="modal-actions">
+      <button id="deleteControlTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
+      <div style="flex:1"></div>
+      <button data-close="controlTemplateTaskModal">Отмена</button>
+      <button id="saveControlTemplateTaskBtn">Сохранить</button>
     </div>
   </div>
 </div>
