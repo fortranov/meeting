@@ -42,29 +42,45 @@ body {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.2px;
-  color: var(--text);
+  color: #002060;
   padding: 4px 2px;
   margin-right: 12px;
   text-decoration: none;
   flex-shrink: 0;
 }
-.brand-mark {
+.brand-logo {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  filter: drop-shadow(0 1px 0 rgba(43, 104, 255, 0.28));
+  text-align: center;
+  color: #002060;
+  font-weight: 400;
+  line-height: 1;
 }
-.brand-text {
-  color: var(--primary);
-  font-weight: 800;
-  letter-spacing: 0.3px;
+.brand-logo-top {
+  font-family: 'Book Antiqua', serif;
+  font-size: 18px;
+  line-height: 1.2;
+  display: inline-block;
+  letter-spacing: 2px;
 }
-.brand:hover .brand-text { color: #1a56e8; }
+.brand-logo-bottom-wrapper {
+  display: inline-block;
+  width: 100%;
+}
+.brand-logo-bottom {
+  font-family: 'Century Gothic', 'Segoe UI', sans-serif;
+  font-size: 9px;
+  display: inline-block;
+  transform-origin: left center;
+  white-space: nowrap;
+  letter-spacing: 1.5px;
+}
+.brand:hover .brand-logo,
+.brand:hover .brand-logo-top,
+.brand:hover .brand-logo-bottom {
+  color: #1a56e8;
+}
 .brand.active-brand { pointer-events: none; }
 .top-nav nav { display: flex; gap: 2px; }
 .nav-settings { margin-left: auto; }

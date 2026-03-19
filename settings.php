@@ -17,7 +17,14 @@ if (!$access['can_view']) accessDeniedPage();
 </head>
 <body>
 <header class="top-nav">
-  <a href="dashboard.php" class="brand"><span class="brand-mark" aria-hidden="true">📘</span><span class="brand-text">Ежедневник</span></a>
+  <a href="dashboard.php" class="brand" aria-label="Органайзер">
+    <span class="brand-logo" aria-hidden="true">
+      <span class="brand-logo-top">ОРГАНАЙЗЕР</span>
+      <span class="brand-logo-bottom-wrapper">
+        <span class="brand-logo-bottom">система планирования времени</span>
+      </span>
+    </span>
+  </a>
   <nav>
     <a href="plan.php">План заседаний</a>
     <a href="control.php">Контроль</a>
@@ -230,5 +237,6 @@ if (!$access['can_view']) accessDeniedPage();
 </div>
 
 <script src="settings.js"></script>
+  <script src="brand-logo.js"></script>
 </body>
 </html>
