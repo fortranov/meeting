@@ -28,7 +28,14 @@ usort($blockMetas, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?
 </head>
 <body>
 <header class="top-nav">
-  <a href="dashboard.php" class="brand active-brand"><span class="brand-mark" aria-hidden="true">📘</span><span class="brand-text">Ежедневник</span></a>
+  <a href="dashboard.php" class="brand active-brand" aria-label="Органайзер">
+    <span class="brand-logo" aria-hidden="true">
+      <span class="brand-logo-top">ОРГАНАЙЗЕР</span>
+      <span class="brand-logo-bottom-wrapper">
+        <span class="brand-logo-bottom">система планирования времени</span>
+      </span>
+    </span>
+  </a>
   <nav>
     <a href="plan.php">План заседаний</a>
     <a href="control.php">Контроль</a>
@@ -50,5 +57,6 @@ usort($blockMetas, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?
 <script src="blocks/<?= htmlspecialchars($m['_dir']) ?>/<?= htmlspecialchars($m['_dir']) ?>.js"></script>
 <?php endforeach; ?>
 <script src="dashboard.js"></script>
+  <script src="brand-logo.js"></script>
 </body>
 </html>
