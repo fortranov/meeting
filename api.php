@@ -1205,15 +1205,16 @@ function dashboardTodayAction(): void
 
     $fetchType = static function (string $type) use ($pdo, $today): array {
         $stmt = $pdo->prepare(
-            "SELECT p.last_name FROM duty_event de
+            "SELECT p.first_name, p.last_name FROM duty_event de
              JOIN person p ON p.id = de.person_id
              WHERE de.event_type = :type
                AND de.start_date <= :today AND de.end_date >= :today
              GROUP BY de.person_id
-             ORDER BY p.last_name"
+             ORDER BY p.first_name"
         );
         $stmt->execute([':type' => $type, ':today' => $today]);
-        $names = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $rows  = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $names = array_map(fn($r) => trim($r['first_name'] . ' ' . $r['last_name']), $rows);
         return ['count' => count($names), 'names' => $names];
     };
 
@@ -1285,7 +1286,7 @@ function dashboardDutyAction(): void
     }
 
     $stmt = $pdo->prepare(
-        "SELECT de.start_date, de.end_date, p.last_name
+        "SELECT de.start_date, de.end_date, p.first_name, p.last_name
          FROM duty_event de
          JOIN person p ON p.id = de.person_id
          WHERE de.event_type = 'duty'
@@ -1297,14 +1298,14 @@ function dashboardDutyAction(): void
 
     $days = [];
     foreach ($dates as $date) {
-        $lastName = null;
+        $name = null;
         foreach ($events as $ev) {
             if ($ev['start_date'] <= $date && $ev['end_date'] >= $date) {
-                $lastName = $ev['last_name'];
+                $name = trim($ev['first_name'] . ' ' . $ev['last_name']);
                 break;
             }
         }
-        $days[] = ['date' => $date, 'last_name' => $lastName];
+        $days[] = ['date' => $date, 'name' => $name];
     }
 
     jsonResponse(['days' => $days]);
@@ -1347,7 +1348,7 @@ function dashboardBirthdaysAction(): void
         }
 
         $md   = $bd->format('m-d');
-        $name = trim($p['full_name'] ?: ($p['first_name'] . ' ' . $p['last_name']));
+        $name = trim($p['first_name'] . ' ' . $p['last_name']) ?: trim($p['full_name']);
         $date = $bd->format('d.m');
 
         // Try this year's birthday; handle Feb 29 on non-leap years

@@ -29,10 +29,10 @@ window.BLOCK_REGISTRY.today = async function renderTodayBlock(el) {
         <span class="dash-stat-val">${present}</span>
         <span></span>
       </div>
-      ${detailRow('Отпуск',      vacation.count,     vacation.names)}
-      ${detailRow('Командировка',businessTrip.count, businessTrip.names)}
-      ${detailRow('Больничный',  sickLeave.count,    sickLeave.names)}
-      ${detailRow('Учёба',       study.count,        study.names)}`;
+      ${detailRow('В отпуске',      vacation.count,     vacation.names)}
+      ${detailRow('В командировке',businessTrip.count, businessTrip.names)}
+      ${detailRow('На больничном', sickLeave.count,    sickLeave.names)}
+      ${detailRow('На учёбе',      study.count,        study.names)}`;
   } catch {
     el.querySelector('.dash-block-body').innerHTML = '<p class="dash-error">Ошибка загрузки</p>';
   }

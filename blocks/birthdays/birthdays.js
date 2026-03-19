@@ -10,7 +10,7 @@ window.BLOCK_REGISTRY.birthdays = async function renderBirthdaysBlock(el) {
     const upcoming = data.upcoming || [];
 
     const todayHtml = today.length
-      ? `<div class="bday-today">${today.map(p => `<span class="bday-today-name">${p.name}</span>`).join('')}</div>`
+      ? `<div class="bday-today">${today.map(p => `<span class="bday-today-name">Сегодня ${p.name}</span>`).join('')}</div>`
       : '';
 
     const pastRows = past.map(p => `
@@ -21,8 +21,8 @@ window.BLOCK_REGISTRY.birthdays = async function renderBirthdaysBlock(el) {
 
     const upcomingRows = upcoming.map(p => `
       <div class="bday-row">
-        <span class="bday-name">${p.name}</span>
         <span class="bday-date">${p.date}</span>
+        <span class="bday-name">${p.name}</span>
       </div>`).join('');
 
     const hasLists = past.length || upcoming.length;
