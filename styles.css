@@ -65,14 +65,15 @@ body {
   letter-spacing: 2px;
 }
 .brand-logo-bottom-wrapper {
-  display: inline-block;
+  display: flex;
+  justify-content: center;
   width: 100%;
 }
 .brand-logo-bottom {
   font-family: 'Century Gothic', 'Segoe UI', sans-serif;
   font-size: 9px;
   display: inline-block;
-  transform-origin: left center;
+  transform-origin: center center;
   white-space: nowrap;
   letter-spacing: 1.5px;
 }
