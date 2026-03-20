@@ -205,7 +205,7 @@ function renderTimeline() {
       </div>
       <div class="timeline-cell left-col left-2">${r.status ? statusPill(r.status) : ''}</div>
       <div class="timeline-cell left-col left-3">${formatPeriod(r.start, r.end)}</div>
-      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null, r.responsible || '')).join('')}
+      ${days.map(d => r.type === 'meeting' ? renderEmptyCell(d) : renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null, r.responsible || '')).join('')}
     </div>`;
   }).join('');
 
@@ -331,6 +331,12 @@ function renderDayHeader(day) {
 function isDoneStatus(status) {
   const st = taskStatuses.find(s => s.name === status);
   return st && Number(st.is_system) === 1;
+}
+
+function renderEmptyCell(day) {
+  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
+  const isToday = toISO(day) === toISO(new Date()) ? 'today' : '';
+  return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
 }
 
 function renderRangeCell(day, start, end, status = '', directionColor = null, responsible = '') {

@@ -641,14 +641,8 @@ body {
 }
 
 .settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-  align-items: start;
-}
-
-#planTemplateCards {
-  display: contents;
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-card {
@@ -726,9 +720,6 @@ body {
 .add-row .btn-cancel { background: var(--bg); color: var(--text); border-color: var(--border); }
 .add-row .btn-cancel:hover { background: #e8ecf5; }
 
-@media (max-width: 1024px) {
-  .settings-grid { grid-template-columns: 1fr; }
-}
 
 
 .settings-list { display: flex; flex-direction: column; gap: 4px; }
