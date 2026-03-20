@@ -212,7 +212,7 @@ async function deleteStatus(id) {
 
 // ─── Persons ──────────────────────────────────────────────
 async function loadPersons() {
-  const data = await api('persons');
+  const data = await (await fetch('api.php?action=persons&include_management=1')).json();
   persons = data.persons || [];
   renderPersons();
 }
@@ -230,6 +230,7 @@ function renderPersons() {
       <span class="drag-handle" title="Перетащить">⠿</span>
       <div class="person-info">
         <span class="person-name">${escHtml(p.full_name || (p.first_name + ' ' + p.last_name).trim())}</span>
+        ${Number(p.is_management) ? '<span class="person-mgmt-badge">Рук.</span>' : ''}
         ${dir ? `<span class="person-dir">${escHtml(dir.name)}</span>` : ''}
       </div>
       <div class="item-actions">
@@ -267,6 +268,7 @@ function openPersonModal(id = null) {
   document.getElementById('personBirthDate').value  = '';
   document.getElementById('personDirection').value  = '';
   document.getElementById('personIp').value         = '';
+  document.getElementById('personIsManagement').checked = false;
   ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit','permCtrlView','permCtrlEdit']
     .forEach(eid => { document.getElementById(eid).checked = false; });
 
@@ -278,6 +280,7 @@ function openPersonModal(id = null) {
       document.getElementById('personBirthDate').value = p.birth_date || '';
       document.getElementById('personDirection').value = p.direction_id || '';
       document.getElementById('personIp').value        = p.ip || '';
+      document.getElementById('personIsManagement').checked = !!Number(p.is_management);
       document.getElementById('permMainView').checked  = !!Number(p.page_main_view);
       document.getElementById('permMainEdit').checked  = !!Number(p.page_main_edit);
       document.getElementById('permDutyView').checked  = !!Number(p.page_duty_view);
@@ -301,6 +304,7 @@ async function savePerson() {
     birth_date:         document.getElementById('personBirthDate').value || null,
     direction_id:       document.getElementById('personDirection').value || null,
     ip:                 document.getElementById('personIp').value.trim(),
+    is_management:      document.getElementById('personIsManagement').checked ? 1 : 0,
     page_main_view:     document.getElementById('permMainView').checked  ? 1 : 0,
     page_main_edit:     document.getElementById('permMainEdit').checked  ? 1 : 0,
     page_duty_view:     document.getElementById('permDutyView').checked  ? 1 : 0,

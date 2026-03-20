@@ -300,15 +300,17 @@ function personsAction(): void
 {
     $pdo = db();
     $q = trim((string)($_GET['q'] ?? ''));
+    $includeManagement = !empty($_GET['include_management']);
 
     $fields = 'id, first_name, last_name, full_name, birth_date, direction_id, sort_order,
-               ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
+               ip, is_management, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
                page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit,
                page_control_view, page_control_edit';
+    $mgFilter = $includeManagement ? '' : 'AND (is_management = 0 OR is_management IS NULL)';
     if ($q === '') {
-        $stmt = $pdo->query("SELECT $fields FROM person ORDER BY sort_order, id LIMIT 50");
+        $stmt = $pdo->query("SELECT $fields FROM person WHERE 1=1 $mgFilter ORDER BY sort_order, id LIMIT 50");
     } else {
-        $stmt = $pdo->prepare("SELECT $fields FROM person WHERE full_name LIKE :q ORDER BY sort_order, id LIMIT 50");
+        $stmt = $pdo->prepare("SELECT $fields FROM person WHERE full_name LIKE :q $mgFilter ORDER BY sort_order, id LIMIT 50");
         $stmt->execute([':q' => '%' . $q . '%']);
     }
     jsonResponse(['persons' => $stmt->fetchAll()]);
@@ -554,18 +556,20 @@ function personSaveAction(): void
     $pve = (int)!empty($payload['page_vacation_edit']);
     $pcv = (int)!empty($payload['page_control_view']);
     $pce = (int)!empty($payload['page_control_edit']);
+    $isMgmt = (int)!empty($payload['is_management']);
 
     if ($fullName === '') jsonResponse(['error' => 'Имя не может быть пустым'], 422);
 
     if ($id) {
         $pdo->prepare(
             'UPDATE person SET first_name=:fn, last_name=:ln, full_name=:full, birth_date=:bd,
-             direction_id=:dir, ip=:ip, page_main_view=:pmv, page_main_edit=:pme,
+             direction_id=:dir, ip=:ip, is_management=:imgmt,
+             page_main_view=:pmv, page_main_edit=:pme,
              page_duty_view=:pdv, page_duty_edit=:pde, page_settings_view=:psv,
              page_settings_edit=:pse, page_vacation_view=:pvv, page_vacation_edit=:pve,
              page_control_view=:pcv, page_control_edit=:pce WHERE id=:id'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
-            ':bd' => $birthDate, ':dir' => $dirId, ':ip' => $ip,
+            ':bd' => $birthDate, ':dir' => $dirId, ':ip' => $ip, ':imgmt' => $isMgmt,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
             ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce, ':id' => $id]);
@@ -573,12 +577,12 @@ function personSaveAction(): void
         $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM person')->fetch()['m']);
         $pdo->prepare(
             'INSERT INTO person (first_name, last_name, full_name, birth_date, direction_id, sort_order,
-             ip, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
+             ip, is_management, page_main_view, page_main_edit, page_duty_view, page_duty_edit,
              page_settings_view, page_settings_edit, page_vacation_view, page_vacation_edit,
              page_control_view, page_control_edit)
-             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:pmv,:pme,:pdv,:pde,:psv,:pse,:pvv,:pve,:pcv,:pce)'
+             VALUES (:fn,:ln,:full,:bd,:dir,:sort,:ip,:imgmt,:pmv,:pme,:pdv,:pde,:psv,:pse,:pvv,:pve,:pcv,:pce)'
         )->execute([':fn' => $firstName, ':ln' => $lastName, ':full' => $fullName,
-            ':bd' => $birthDate, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip,
+            ':bd' => $birthDate, ':dir' => $dirId, ':sort' => $max + 1, ':ip' => $ip, ':imgmt' => $isMgmt,
             ':pmv' => $pmv, ':pme' => $pme, ':pdv' => $pdv,
             ':pde' => $pde, ':psv' => $psv, ':pse' => $pse,
             ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce]);

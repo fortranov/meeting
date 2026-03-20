@@ -336,9 +336,8 @@ function isDoneStatus(status) {
 function renderRangeCell(day, start, end, status = '', directionColor = null, responsible = '') {
   const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d          = toISO(day);
-  const meetingDay = meetingDates.has(d) ? 'meeting-day' : '';
   const isToday    = d === toISO(new Date()) ? 'today' : '';
-  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${meetingDay} ${isToday} ${weekend}"></div>`;
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   let cellStyle = '';
   let fillStyle = '';

@@ -849,6 +849,7 @@ body {
 .person-item .person-info { flex: 1; min-width: 0; }
 .person-name { font-size: 0.88rem; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-dir  { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-mgmt-badge { font-size: 0.7rem; font-weight: 600; color: #7c3aed; background: #ede9fe; border-radius: 3px; padding: 1px 5px; display: inline-block; margin-top: 2px; }
 
 /* ─── Holiday Accordion ─── */
 .holiday-accordion {

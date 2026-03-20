@@ -136,6 +136,7 @@ if (!$access['can_view']) accessDeniedPage();
     </label>
     <label>День рождения (необязательно)<input id="personBirthDate" type="date" /></label>
     <label>IP-адрес (необязательно)<input id="personIp" placeholder="например, 192.168.1.100" /></label>
+    <label class="checkbox-label"><input type="checkbox" id="personIsManagement" /> Руководящий состав</label>
     <div class="page-perms-section">
       <span class="page-perms-title">Права доступа к страницам</span>
       <table class="page-perms-table">
