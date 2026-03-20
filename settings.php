@@ -91,24 +91,6 @@ if (!$access['can_view']) accessDeniedPage();
 
     <div id="planTemplateCards"></div>
 
-    <section class="settings-card" style="display:none">
-      <div class="settings-card-header">
-        <h2>Шаблон заседания</h2>
-        <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
-      </div>
-      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового заседания с опцией «На основе шаблона».</p>
-      <div id="templateTasksList" class="settings-list"></div>
-    </section>
-
-    <section class="settings-card" style="display:none">
-      <div class="settings-card-header">
-        <h2>Шаблон контроля за месяц</h2>
-        <button class="btn-add" id="showAddControlTemplateTask">+ Добавить задачу</button>
-      </div>
-      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового контроля за месяц с опцией «На основе шаблона».</p>
-      <div id="controlTemplateTasksList" class="settings-list"></div>
-    </section>
-
     <section class="settings-card">
       <div class="settings-card-header">
         <h2>Цвета и размеры</h2>
@@ -187,52 +169,6 @@ if (!$access['can_view']) accessDeniedPage();
     <div class="modal-actions">
       <button data-close="holidayModal">Отмена</button>
       <button id="saveHolidayBtn">Добавить</button>
-    </div>
-  </div>
-</div>
-
-<!-- Template task modal -->
-<div id="templateTaskModal" class="modal hidden">
-  <div class="modal-box">
-    <h3 id="templateTaskModalTitle">Добавить задачу в шаблон</h3>
-    <input type="hidden" id="templateTaskId" />
-    <label>Название задачи<input id="tmplTitle" /></label>
-    <div class="row2">
-      <label>Дней до заседания<input id="tmplDaysBefore" type="number" min="0" value="0" /></label>
-      <label>Длительность (дней)<input id="tmplDuration" type="number" min="1" value="1" /></label>
-    </div>
-    <label class="checkbox-label">
-      <input type="checkbox" id="tmplIsSubtask" />
-      Подзадача (дочерняя для предыдущей задачи в списке)
-    </label>
-    <div class="modal-actions">
-      <button id="deleteTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
-      <div style="flex:1"></div>
-      <button data-close="templateTaskModal">Отмена</button>
-      <button id="saveTemplateTaskBtn">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<!-- Control template task modal -->
-<div id="controlTemplateTaskModal" class="modal hidden">
-  <div class="modal-box">
-    <h3 id="controlTemplateTaskModalTitle">Добавить задачу в шаблон контроля</h3>
-    <input type="hidden" id="controlTemplateTaskId" />
-    <label>Название задачи<input id="ctmplTitle" /></label>
-    <div class="row2">
-      <label>Дней до контроля<input id="ctmplDaysBefore" type="number" min="0" value="0" /></label>
-      <label>Длительность (дней)<input id="ctmplDuration" type="number" min="1" value="1" /></label>
-    </div>
-    <label class="checkbox-label">
-      <input type="checkbox" id="ctmplIsSubtask" />
-      Подзадача (дочерняя для предыдущей задачи в списке)
-    </label>
-    <div class="modal-actions">
-      <button id="deleteControlTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
-      <div style="flex:1"></div>
-      <button data-close="controlTemplateTaskModal">Отмена</button>
-      <button id="saveControlTemplateTaskBtn">Сохранить</button>
     </div>
   </div>
 </div>
