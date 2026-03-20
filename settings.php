@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/access.php';
+require_once __DIR__ . '/nav.php';
 db();
 $access = checkPageAccess('settings');
 if (!$access['can_view']) accessDeniedPage();
@@ -25,12 +26,7 @@ if (!$access['can_view']) accessDeniedPage();
       </span>
     </span>
   </a>
-  <nav>
-    <a href="plan.php">План заседаний</a>
-    <a href="control.php">Контроль</a>
-    <a href="duty.php">График дежурств</a>
-    <a href="vacation.php">График отпусков</a>
-  </nav>
+  <?= renderPlanPageNav('settings') ?>
   <a href="settings.php" class="active nav-settings">Настройки</a>
 </header>
 <main class="page">
@@ -84,7 +80,18 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="holidaysList"></div>
     </section>
 
-    <section class="settings-card">
+    <section class="settings-card" id="planPagesCard">
+      <div class="settings-card-header">
+        <h2>Страницы планов</h2>
+        <button class="btn-add" id="showAddPlanPage">+ Добавить</button>
+      </div>
+      <p class="settings-hint">Создавайте страницы для планирования различных мероприятий. Для каждой страницы автоматически создаётся блок на Дашборде и шаблон задач.</p>
+      <div id="planPagesList" class="settings-list"></div>
+    </section>
+
+    <div id="planTemplateCards"></div>
+
+    <section class="settings-card" style="display:none">
       <div class="settings-card-header">
         <h2>Шаблон заседания</h2>
         <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
@@ -93,7 +100,7 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="templateTasksList" class="settings-list"></div>
     </section>
 
-    <section class="settings-card">
+    <section class="settings-card" style="display:none">
       <div class="settings-card-header">
         <h2>Шаблон контроля за месяц</h2>
         <button class="btn-add" id="showAddControlTemplateTask">+ Добавить задачу</button>
@@ -143,12 +150,10 @@ if (!$access['can_view']) accessDeniedPage();
         <thead>
           <tr><th>Страница</th><th>Просмотр</th><th>Редактирование</th></tr>
         </thead>
+        <tbody id="planPagePermsBody">
+          <!-- Plan page permissions rows are injected dynamically by settings.js -->
+        </tbody>
         <tbody>
-          <tr>
-            <td>План заседаний</td>
-            <td><input type="checkbox" id="permMainView" /></td>
-            <td><input type="checkbox" id="permMainEdit" /></td>
-          </tr>
           <tr>
             <td>График дежурств</td>
             <td><input type="checkbox" id="permDutyView" /></td>
@@ -163,11 +168,6 @@ if (!$access['can_view']) accessDeniedPage();
             <td>График отпусков</td>
             <td><input type="checkbox" id="permVacView" /></td>
             <td><input type="checkbox" id="permVacEdit" /></td>
-          </tr>
-          <tr>
-            <td>Контроль</td>
-            <td><input type="checkbox" id="permCtrlView" /></td>
-            <td><input type="checkbox" id="permCtrlEdit" /></td>
           </tr>
         </tbody>
       </table>
@@ -237,7 +237,50 @@ if (!$access['can_view']) accessDeniedPage();
   </div>
 </div>
 
+<!-- Plan page modal -->
+<div id="planPageModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="planPageModalTitle">Добавить страницу плана</h3>
+    <input type="hidden" id="planPageId" />
+    <label>Название страницы<input id="planPageTitle" /></label>
+    <label>Название меню<input id="planPageMenuTitle" /></label>
+    <label>Название для Главной страницы<input id="planPageDashTitle" /></label>
+    <label>Объединяющий элемент (название)<input id="planPageSessionLabel" placeholder="например: Заседание, Контроль за месяц" /></label>
+    <label class="checkbox-label"><input type="checkbox" id="planPageHasTopic" /> Поле «Тема» у элемента</label>
+    <div class="modal-actions">
+      <button id="deletePlanPageBtn" class="btn-danger hidden">Удалить</button>
+      <div style="flex:1"></div>
+      <button data-close="planPageModal">Отмена</button>
+      <button id="savePlanPageBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic plan template task modal -->
+<div id="planTmplModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="planTmplModalTitle">Добавить задачу в шаблон</h3>
+    <input type="hidden" id="planTmplId" />
+    <input type="hidden" id="planTmplPageId" />
+    <label>Название задачи<input id="planTmplTitle" /></label>
+    <div class="row2">
+      <label>Дней до события<input id="planTmplDaysBefore" type="number" min="0" value="0" /></label>
+      <label>Длительность (дней)<input id="planTmplDuration" type="number" min="1" value="1" /></label>
+    </div>
+    <label class="checkbox-label">
+      <input type="checkbox" id="planTmplIsSubtask" />
+      Подзадача
+    </label>
+    <div class="modal-actions">
+      <button id="deletePlanTmplBtn" class="btn-danger hidden">Удалить</button>
+      <div style="flex:1"></div>
+      <button data-close="planTmplModal">Отмена</button>
+      <button id="savePlanTmplBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script src="settings.js"></script>
-  <script src="brand-logo.js"></script>
+<script src="brand-logo.js"></script>
 </body>
 </html>

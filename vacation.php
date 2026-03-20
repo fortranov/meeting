@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/access.php';
+require_once __DIR__ . '/nav.php';
 db();
 $access = checkPageAccess('vacation');
 if (!$access['can_view']) accessDeniedPage();
@@ -25,12 +26,7 @@ if (!$access['can_view']) accessDeniedPage();
       </span>
     </span>
   </a>
-  <nav>
-    <a href="plan.php">План заседаний</a>
-    <a href="control.php">Контроль</a>
-    <a href="duty.php">График дежурств</a>
-    <a href="vacation.php" class="active">График отпусков</a>
-  </nav>
+  <?= renderPlanPageNav('vacation') ?>
   <a href="settings.php" class="nav-settings">Настройки</a>
 </header>
 <main class="page">

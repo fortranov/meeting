@@ -1,0 +1,25 @@
+.dash-task-row {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dash-task-row:last-child {
+  border-bottom: none;
+}
+.dash-task-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.dash-task-meta {
+  display: grid;
+  grid-template-columns: 30% 60%;
+}
+.dash-task-dates,
+.dash-task-persons {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

@@ -196,6 +196,69 @@ try {
         case 'dashboard_birthdays':
             dashboardBirthdaysAction();
             break;
+        case 'plan_pages':
+            planPagesAction();
+            break;
+        case 'plan_page_save':
+            requirePost();
+            planPageSaveAction();
+            break;
+        case 'plan_page_delete':
+            requirePost();
+            planPageDeleteAction();
+            break;
+        case 'plan_page_reorder':
+            requirePost();
+            planPageReorderAction();
+            break;
+        case 'plan_timeline':
+            planTimelineAction();
+            break;
+        case 'plan_session_save':
+            requirePost();
+            planSessionSaveAction();
+            break;
+        case 'plan_session_delete':
+            requirePost();
+            planSessionDeleteAction();
+            break;
+        case 'plan_task_save':
+            requirePost();
+            planTaskSaveAction();
+            break;
+        case 'plan_task_delete':
+            requirePost();
+            planTaskDeleteAction();
+            break;
+        case 'plan_task_dates':
+            requirePost();
+            planTaskDatesAction();
+            break;
+        case 'plan_task_reorder':
+            requirePost();
+            planTaskReorderAction();
+            break;
+        case 'plan_template_tasks':
+            planTemplateTasksAction();
+            break;
+        case 'plan_template_task_save':
+            requirePost();
+            planTemplateTaskSaveAction();
+            break;
+        case 'plan_template_task_delete':
+            requirePost();
+            planTemplateTaskDeleteAction();
+            break;
+        case 'plan_template_task_reorder':
+            requirePost();
+            planTemplateTaskReorderAction();
+            break;
+        case 'dashboard_plan_tasks':
+            dashboardPlanTasksAction();
+            break;
+        case 'plan_page_person_access':
+            planPagePersonAccessAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -588,6 +651,25 @@ function personSaveAction(): void
             ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce]);
         $id = (int)$pdo->lastInsertId();
     }
+
+    // Handle plan page accesses if provided
+    $planPageAccesses = $payload['plan_page_accesses'] ?? null;
+    if (is_array($planPageAccesses)) {
+        $stmtAcc = $pdo->prepare(
+            'INSERT OR REPLACE INTO person_plan_access (person_id, plan_page_id, can_view, can_edit) VALUES (:pid, :ppid, :cv, :ce)'
+        );
+        foreach ($planPageAccesses as $access) {
+            $ppid = isset($access['plan_page_id']) ? (int)$access['plan_page_id'] : 0;
+            if ($ppid <= 0) continue;
+            $stmtAcc->execute([
+                ':pid'  => $id,
+                ':ppid' => $ppid,
+                ':cv'   => (int)!empty($access['can_view']),
+                ':ce'   => (int)!empty($access['can_edit']),
+            ]);
+        }
+    }
+
     jsonResponse(['ok' => true, 'id' => $id]);
 }
 
@@ -1320,10 +1402,18 @@ function dashboardBlocksAction(): void
     $blocks = [];
     foreach (glob(__DIR__ . '/blocks/*/block.php') as $f) {
         $meta = require $f;
+        // block.php may return a single meta array or an empty array (skip)
         if (is_array($meta) && isset($meta['id'], $meta['name'])) {
             $blocks[] = ['id' => $meta['id'], 'name' => $meta['name'], 'sort_order' => $meta['sort_order'] ?? 0];
         }
     }
+    // Add plan task blocks dynamically from plan_page table
+    try {
+        $planPages = db()->query('SELECT id, dash_title, sort_order FROM plan_page ORDER BY sort_order, id')->fetchAll();
+        foreach ($planPages as $p) {
+            $blocks[] = ['id' => 'planTasks_' . (int)$p['id'], 'name' => $p['dash_title'], 'sort_order' => (int)$p['sort_order']];
+        }
+    } catch (\Throwable) {}
     usort($blocks, fn($a, $b) => $a['sort_order'] <=> $b['sort_order']);
     jsonResponse(['blocks' => $blocks]);
 }
@@ -1391,4 +1481,452 @@ function dashboardBirthdaysAction(): void
     usort($upcomingList, fn($a, $b) => $a['days_till'] <=> $b['days_till']);
 
     jsonResponse(['today' => $todayList, 'past' => $pastList, 'upcoming' => $upcomingList]);
+}
+
+// ─── Plan Page System ─────────────────────────────────────────────────────────
+
+function planPagesAction(): void
+{
+    try {
+        $rows = db()->query('SELECT id, title, menu_title, dash_title, session_label, has_topic, sort_order FROM plan_page ORDER BY sort_order, id')->fetchAll();
+        jsonResponse(['pages' => $rows]);
+    } catch (\Throwable) {
+        jsonResponse(['pages' => []]);
+    }
+}
+
+function planPageSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+
+    $title        = trim((string)($payload['title']         ?? ''));
+    $menuTitle    = trim((string)($payload['menu_title']    ?? ''));
+    $dashTitle    = trim((string)($payload['dash_title']    ?? ''));
+    $sessionLabel = trim((string)($payload['session_label'] ?? 'Заседание'));
+    $hasTopic     = (int)!empty($payload['has_topic']);
+
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+
+    if ($id) {
+        $pdo->prepare(
+            'UPDATE plan_page SET title=:t, menu_title=:mt, dash_title=:dt, session_label=:sl, has_topic=:ht WHERE id=:id'
+        )->execute([':t' => $title, ':mt' => $menuTitle, ':dt' => $dashTitle, ':sl' => $sessionLabel, ':ht' => $hasTopic, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM plan_page')->fetch()['m']);
+        $pdo->prepare(
+            'INSERT INTO plan_page (title, menu_title, dash_title, session_label, has_topic, sort_order) VALUES (:t,:mt,:dt,:sl,:ht,:sort)'
+        )->execute([':t' => $title, ':mt' => $menuTitle, ':dt' => $dashTitle, ':sl' => $sessionLabel, ':ht' => $hasTopic, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+
+        // Create person_plan_access rows for all persons (default 0,0)
+        $persons = $pdo->query('SELECT id FROM person')->fetchAll();
+        $stmtAcc = $pdo->prepare('INSERT OR IGNORE INTO person_plan_access (person_id, plan_page_id, can_view, can_edit) VALUES (:pid, :ppid, 0, 0)');
+        foreach ($persons as $p) {
+            $stmtAcc->execute([':pid' => (int)$p['id'], ':ppid' => $id]);
+        }
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planPageDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_page WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planPageReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_page SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTimelineAction(): void
+{
+    $pdo    = db();
+    $pageId = (int)($_GET['page_id'] ?? 1);
+    $start  = $_GET['start'] ?? date('Y-m-01');
+    $days   = max(1, min(60, (int)($_GET['days'] ?? 35)));
+
+    // Load page info
+    $pageRow = null;
+    try {
+        $stmt = $pdo->prepare('SELECT id, title, session_label, has_topic FROM plan_page WHERE id=:id LIMIT 1');
+        $stmt->execute([':id' => $pageId]);
+        $pageRow = $stmt->fetch();
+    } catch (\Throwable) {}
+    if (!$pageRow) {
+        jsonResponse(['sessions' => [], 'page' => null]);
+    }
+
+    $sessions = $pdo->prepare('SELECT id, title, session_date, topic FROM plan_session WHERE plan_page_id=:ppid ORDER BY session_date, id');
+    $sessions->execute([':ppid' => $pageId]);
+    $sessions = $sessions->fetchAll();
+
+    $taskRows = $pdo->prepare(
+        'SELECT t.id, t.session_id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+                GROUP_CONCAT(p.full_name, ", ") AS responsible,
+                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids,
+                (SELECT d.color FROM plan_task_person tp2
+                 JOIN person p2 ON p2.id = tp2.person_id
+                 LEFT JOIN direction d ON d.id = p2.direction_id
+                 WHERE tp2.task_id = t.id
+                 ORDER BY tp2.person_id LIMIT 1) AS direction_color
+         FROM plan_task t
+         LEFT JOIN plan_task_person tp ON tp.task_id = t.id
+         LEFT JOIN person p ON p.id = tp.person_id
+         WHERE t.plan_page_id = :ppid
+         GROUP BY t.id
+         ORDER BY t.sort_order, t.start_date, t.id'
+    );
+    $taskRows->execute([':ppid' => $pageId]);
+    $taskRows = $taskRows->fetchAll();
+
+    // Conflict check
+    $conflictsByTask = [];
+    try {
+        $cRows = $pdo->prepare(
+            'SELECT tp.task_id, p.full_name, de.event_type, de.start_date AS ev_start, de.end_date AS ev_end
+             FROM plan_task_person tp
+             JOIN person p  ON p.id  = tp.person_id
+             JOIN duty_event de ON de.person_id = tp.person_id
+             JOIN plan_task t ON t.id = tp.task_id
+             WHERE t.plan_page_id = :ppid
+               AND de.event_type IN (\'vacation\', \'study\')
+               AND DATE(de.start_date) <= DATE(t.end_date)
+               AND DATE(de.end_date)   >= DATE(t.start_date)
+             ORDER BY tp.task_id, p.full_name, de.start_date'
+        );
+        $cRows->execute([':ppid' => $pageId]);
+        foreach ($cRows->fetchAll() as $r) {
+            $conflictsByTask[(int)$r['task_id']][] = [
+                'person'     => $r['full_name'],
+                'event_type' => $r['event_type'],
+                'start'      => $r['ev_start'],
+                'end'        => $r['ev_end'],
+            ];
+        }
+    } catch (\Throwable) {}
+
+    $tasksBySession = [];
+    foreach ($taskRows as $task) {
+        $task['responsible'] = $task['responsible'] ?? '';
+        $task['person_ids']  = $task['person_ids']  ?? '';
+        $task['conflicts']   = $conflictsByTask[(int)$task['id']] ?? [];
+        $tasksBySession[(int)$task['session_id']][] = $task;
+    }
+
+    $result = [];
+    foreach ($sessions as $session) {
+        $sid   = (int)$session['id'];
+        $tasks = $tasksBySession[$sid] ?? [];
+        $indexed = [];
+        foreach ($tasks as $task) {
+            $task['children'] = [];
+            $indexed[(int)$task['id']] = $task;
+        }
+        $roots = [];
+        foreach ($indexed as $id => &$task) {
+            $parentId = $task['parent_task_id'] !== null ? (int)$task['parent_task_id'] : null;
+            if ($parentId && isset($indexed[$parentId])) {
+                $indexed[$parentId]['children'][] = &$task;
+            } else {
+                $roots[] = &$task;
+            }
+        }
+        unset($task);
+
+        $result[] = [
+            'id'           => $sid,
+            'title'        => $session['title'],
+            'session_date' => $session['session_date'],
+            'topic'        => $session['topic'],
+            'tasks'        => $roots,
+        ];
+    }
+
+    jsonResponse([
+        'start'    => $start,
+        'days'     => $days,
+        'sessions' => $result,
+        'page'     => [
+            'id'            => (int)$pageRow['id'],
+            'title'         => $pageRow['title'],
+            'session_label' => $pageRow['session_label'],
+            'has_topic'     => (int)$pageRow['has_topic'],
+        ],
+    ]);
+}
+
+function planSessionSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId  = (int)($payload['page_id'] ?? 0);
+    $title   = trim((string)($payload['title']        ?? ''));
+    $date    = trim((string)($payload['session_date'] ?? ''));
+    $topic   = trim((string)($payload['topic']        ?? ''));
+
+    if ($pageId <= 0 || $title === '' || $date === '') {
+        jsonResponse(['error' => 'Заполните обязательные поля'], 422);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_session SET title=:t, session_date=:d, topic=:topic, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':t' => $title, ':d' => $date, ':topic' => $topic, ':id' => $id]);
+    } else {
+        $pdo->prepare('INSERT INTO plan_session (plan_page_id, title, session_date, topic) VALUES (:ppid,:t,:d,:topic)')
+            ->execute([':ppid' => $pageId, ':t' => $title, ':d' => $date, ':topic' => $topic]);
+        $id = (int)$pdo->lastInsertId();
+        if (!empty($payload['use_template'])) {
+            createPlanTasksFromTemplate($pdo, $id, $date, $pageId);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planSessionDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_session WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskSaveAction(): void
+{
+    $pdo       = db();
+    $payload   = getJsonPayload();
+
+    $id        = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId    = (int)($payload['page_id']        ?? 0);
+    $sessionId = (int)($payload['session_id']     ?? 0);
+    $parentId  = isset($payload['parent_task_id']) && $payload['parent_task_id'] !== '' ? (int)$payload['parent_task_id'] : null;
+    $title     = trim((string)($payload['title']      ?? ''));
+    $start     = trim((string)($payload['start_date'] ?? ''));
+    $end       = trim((string)($payload['end_date']   ?? ''));
+    $status    = trim((string)($payload['status']     ?? 'В работе'));
+    $persons   = is_array($payload['person_ids'] ?? null) ? $payload['person_ids'] : [];
+
+    if ($sessionId <= 0 || $title === '' || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Заполните поля задачи'], 422);
+    }
+
+    // Determine page_id from session if not provided
+    if ($pageId <= 0) {
+        $row = $pdo->prepare('SELECT plan_page_id FROM plan_session WHERE id=:id LIMIT 1');
+        $row->execute([':id' => $sessionId]);
+        $pageId = (int)($row->fetch()['plan_page_id'] ?? 0);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_task SET title=:t, start_date=:s, end_date=:e, status=:st, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':t' => $title, ':s' => $start, ':e' => $end, ':st' => $status, ':id' => $id]);
+    } else {
+        if ($parentId !== null) {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM plan_task WHERE parent_task_id=:pid');
+            $sortStmt->execute([':pid' => $parentId]);
+        } else {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM plan_task WHERE session_id=:sid AND parent_task_id IS NULL');
+            $sortStmt->execute([':sid' => $sessionId]);
+        }
+        $sortOrder = (int)($sortStmt->fetch()['next'] ?? 1);
+
+        $pdo->prepare(
+            'INSERT INTO plan_task (plan_page_id, session_id, parent_task_id, title, start_date, end_date, status, sort_order)
+             VALUES (:ppid, :sid, :pid, :t, :s, :e, :st, :sort)'
+        )->execute([
+            ':ppid' => $pageId,
+            ':sid'  => $sessionId,
+            ':pid'  => $parentId,
+            ':t'    => $title,
+            ':s'    => $start,
+            ':e'    => $end,
+            ':st'   => $status,
+            ':sort' => $sortOrder,
+        ]);
+        $id = (int)$pdo->lastInsertId();
+    }
+
+    $pdo->prepare('DELETE FROM plan_task_person WHERE task_id=:id')->execute([':id' => $id]);
+    if ($persons) {
+        $link = $pdo->prepare('INSERT INTO plan_task_person (task_id, person_id) VALUES (:tid,:pid)');
+        foreach ($persons as $pid) {
+            $link->execute([':tid' => $id, ':pid' => (int)$pid]);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskDatesAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = (int)($payload['id'] ?? 0);
+    $start   = trim((string)($payload['start_date'] ?? ''));
+    $end     = trim((string)($payload['end_date']   ?? ''));
+    if ($id <= 0 || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Неверные данные'], 422);
+    }
+    $pdo->prepare('UPDATE plan_task SET start_date=:s, end_date=:e, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+        ->execute([':s' => $start, ':e' => $end, ':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTemplateTasksAction(): void
+{
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if ($pageId <= 0) jsonResponse(['error' => 'page_id обязателен'], 422);
+    try {
+        $stmt = db()->prepare('SELECT id, plan_page_id, title, days_before, duration_days, is_subtask, sort_order FROM plan_template_task WHERE plan_page_id=:ppid ORDER BY sort_order, id');
+        $stmt->execute([':ppid' => $pageId]);
+        jsonResponse(['tasks' => $stmt->fetchAll()]);
+    } catch (\Throwable) {
+        jsonResponse(['tasks' => []]);
+    }
+}
+
+function planTemplateTaskSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId  = (int)($payload['plan_page_id'] ?? 0);
+    $title   = trim((string)($payload['title'] ?? ''));
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+    $daysBefore   = max(0, (int)($payload['days_before']   ?? 0));
+    $durationDays = max(1, (int)($payload['duration_days'] ?? 1));
+    $isSubtask    = (int)(!empty($payload['is_subtask']));
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_template_task SET title=:t, days_before=:db, duration_days=:dd, is_subtask=:sub WHERE id=:id')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':id' => $id]);
+    } else {
+        if ($pageId <= 0) jsonResponse(['error' => 'plan_page_id обязателен'], 422);
+        $maxStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0) AS m FROM plan_template_task WHERE plan_page_id=:ppid');
+        $maxStmt->execute([':ppid' => $pageId]);
+        $max = (int)($maxStmt->fetch()['m'] ?? 0);
+        $pdo->prepare('INSERT INTO plan_template_task (plan_page_id, title, days_before, duration_days, is_subtask, sort_order) VALUES (:ppid,:t,:db,:dd,:sub,:sort)')
+            ->execute([':ppid' => $pageId, ':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planTemplateTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_template_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTemplateTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_template_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function createPlanTasksFromTemplate(PDO $pdo, int $sessionId, string $sessionDate, int $pageId): void
+{
+    $stmt = $pdo->prepare('SELECT * FROM plan_template_task WHERE plan_page_id=:ppid ORDER BY sort_order, id');
+    $stmt->execute([':ppid' => $pageId]);
+    $tasks = $stmt->fetchAll();
+    if (!$tasks) return;
+
+    $defaultStatus = $pdo->query("SELECT name FROM task_status WHERE is_system=0 ORDER BY sort_order, id LIMIT 1")->fetch()['name'] ?? 'В работе';
+    $ins = $pdo->prepare(
+        'INSERT INTO plan_task (plan_page_id, session_id, parent_task_id, title, start_date, end_date, status)
+         VALUES (:ppid, :sid, :pid, :title, :start, :end, :status)'
+    );
+    $sessionDt  = new DateTime($sessionDate);
+    $prevTaskId = null;
+
+    foreach ($tasks as $tmpl) {
+        $start    = (clone $sessionDt)->modify('-' . (int)$tmpl['days_before'] . ' days');
+        $end      = (clone $start)->modify('+' . max(0, (int)$tmpl['duration_days'] - 1) . ' days');
+        $parentId = ((int)$tmpl['is_subtask'] && $prevTaskId !== null) ? $prevTaskId : null;
+        $ins->execute([
+            ':ppid'   => $pageId,
+            ':sid'    => $sessionId,
+            ':pid'    => $parentId,
+            ':title'  => $tmpl['title'],
+            ':start'  => $start->format('Y-m-d'),
+            ':end'    => $end->format('Y-m-d'),
+            ':status' => $defaultStatus,
+        ]);
+        $prevTaskId = (int)$pdo->lastInsertId();
+    }
+}
+
+function dashboardPlanTasksAction(): void
+{
+    $pdo    = db();
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if ($pageId <= 0) jsonResponse(['tasks' => []]);
+    $today = date('Y-m-d');
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT t.id, t.title, t.start_date, t.end_date,
+                    GROUP_CONCAT(p.last_name, ', ') AS responsible
+             FROM plan_task t
+             LEFT JOIN plan_task_person tp ON tp.task_id = t.id
+             LEFT JOIN person p ON p.id = tp.person_id
+             WHERE t.plan_page_id = :ppid
+               AND t.start_date <= :today AND t.end_date >= :today
+             GROUP BY t.id
+             ORDER BY t.end_date, t.start_date, t.id"
+        );
+        $stmt->execute([':ppid' => $pageId, ':today' => $today]);
+        jsonResponse(['tasks' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (\Throwable) {
+        jsonResponse(['tasks' => []]);
+    }
+}
+
+function planPagePersonAccessAction(): void
+{
+    $personId = (int)($_GET['person_id'] ?? 0);
+    if ($personId <= 0) jsonResponse(['error' => 'person_id обязателен'], 422);
+    try {
+        $stmt = db()->prepare('SELECT plan_page_id, can_view, can_edit FROM person_plan_access WHERE person_id=:pid');
+        $stmt->execute([':pid' => $personId]);
+        jsonResponse(['access' => $stmt->fetchAll()]);
+    } catch (\Throwable) {
+        jsonResponse(['access' => []]);
+    }
 }
