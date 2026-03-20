@@ -641,8 +641,16 @@ body {
 }
 
 .settings-grid {
-  display: flex;
-  flex-direction: column;
+  columns: 2;
+  column-gap: 16px;
+}
+
+#planTemplateCards {
+  display: contents;
+}
+
+@media (max-width: 1024px) {
+  .settings-grid { columns: 1; }
 }
 
 .settings-card {
@@ -651,6 +659,7 @@ body {
   border-radius: 14px;
   padding: 20px;
   min-width: 0;
+  break-inside: avoid;
   margin-bottom: 16px;
 }
 

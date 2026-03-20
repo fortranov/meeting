@@ -12,6 +12,9 @@ let planTemplateTasksCache = {}; // keyed by plan_page_id
 async function init() {
   bindEvents();
   await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules()]);
+  // Force multi-column layout reflow after async data fills the cards
+  const grid = document.querySelector('.settings-grid');
+  if (grid) { grid.style.display = 'none'; grid.offsetHeight; grid.style.display = ''; }
 }
 
 function bindEvents() {
