@@ -334,16 +334,18 @@ function isDoneStatus(status) {
 }
 
 function renderEmptyCell(day) {
-  const weekend = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
-  const isToday = toISO(day) === toISO(new Date()) ? 'today' : '';
-  return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
+  const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
+  const isToday    = toISO(day) === toISO(new Date()) ? 'today' : '';
+  const sessionDay = sessionDates.has(toISO(day)) ? 'meeting-day' : '';
+  return `<div class="timeline-cell day-cell ${isToday} ${weekend} ${sessionDay}"></div>`;
 }
 
 function renderRangeCell(day, start, end, status = '', directionColor = null, responsible = '') {
   const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d          = toISO(day);
   const isToday    = d === toISO(new Date()) ? 'today' : '';
-  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
+  const sessionDay = sessionDates.has(d) ? 'meeting-day' : '';
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend} ${sessionDay}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   let cellStyle = '';
   let fillStyle = '';
@@ -355,7 +357,7 @@ function renderRangeCell(day, start, end, status = '', directionColor = null, re
     fillStyle = ` style="border-color:${directionColor};background:rgba(${r},${g},${b},0.07)"`;
   }
   const tooltipAttr = responsible ? ` data-tooltip="${escapeHtml(responsible)}"` : '';
-  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"${cellStyle}${tooltipAttr}><div class="day-fill"${fillStyle}></div></div>`;
+  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend} ${sessionDay}"${cellStyle}${tooltipAttr}><div class="day-fill"${fillStyle}></div></div>`;
 }
 
 function pillStyleFromColor(hex) {
