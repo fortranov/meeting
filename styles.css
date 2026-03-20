@@ -1307,11 +1307,12 @@ body {
   cursor: default;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   transition: filter 0.1s;
   min-width: 4px;
+  z-index: 2;
 }
-.vac-event:hover { filter: brightness(0.88); z-index: 10; overflow: visible; }
+.vac-event:hover { filter: brightness(0.88); z-index: 10; }
 
 .vac-meeting-line {
   position: absolute;
@@ -1329,9 +1330,9 @@ body {
   font-weight: 600;
   color: #6b4400;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
   padding: 0 4px;
-  flex-shrink: 1;
+  flex-shrink: 0;
   min-width: 0;
   pointer-events: none;
 }
