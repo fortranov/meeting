@@ -641,8 +641,14 @@ body {
 }
 
 .settings-grid {
-  columns: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   column-gap: 16px;
+  align-items: start;
+}
+
+#planTemplateCards {
+  display: contents;
 }
 
 .settings-card {
@@ -651,7 +657,6 @@ body {
   border-radius: 14px;
   padding: 20px;
   min-width: 0;
-  break-inside: avoid;
   margin-bottom: 16px;
 }
 
@@ -722,7 +727,7 @@ body {
 .add-row .btn-cancel:hover { background: #e8ecf5; }
 
 @media (max-width: 1024px) {
-  .settings-grid { columns: 1; }
+  .settings-grid { grid-template-columns: 1fr; }
 }
 
 
