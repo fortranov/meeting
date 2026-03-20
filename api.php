@@ -1287,7 +1287,7 @@ function dashboardTodayAction(): void
     $pdo   = db();
     $today = date('Y-m-d');
 
-    $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person')->fetch()['c'];
+    $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person WHERE is_management = 0 OR is_management IS NULL')->fetch()['c'];
 
     $fetchType = static function (string $type) use ($pdo, $today): array {
         $stmt = $pdo->prepare(
