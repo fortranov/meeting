@@ -10,24 +10,30 @@
 
   if (!input) return;
 
-  // ── Show/hide clear button on typing ──────────────────────────────────────
+  let debounceTimer = null;
+
+  // ── Show/hide clear button + auto-search after 3 chars ────────────────────
   input.addEventListener('input', () => {
     clearBtn.hidden = input.value.length === 0;
-    if (input.value.length === 0) closeDropdown();
+    clearTimeout(debounceTimer);
+    if (input.value.trim().length === 0) { closeDropdown(); return; }
+    if (input.value.trim().length < 3)   { return; }
+    debounceTimer = setTimeout(doSearch, 350);
   });
 
   // ── Clear button ──────────────────────────────────────────────────────────
   clearBtn.addEventListener('click', () => {
     input.value    = '';
     clearBtn.hidden = true;
+    clearTimeout(debounceTimer);
     closeDropdown();
     input.focus();
   });
 
-  // ── Keyboard: Enter = search, Escape = close ──────────────────────────────
+  // ── Keyboard: Enter = search immediately, Escape = close ─────────────────
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
-    if (e.key === 'Escape') closeDropdown();
+    if (e.key === 'Enter')  { e.preventDefault(); clearTimeout(debounceTimer); doSearch(); }
+    if (e.key === 'Escape') { clearTimeout(debounceTimer); closeDropdown(); }
   });
 
   // ── Search button click ───────────────────────────────────────────────────
