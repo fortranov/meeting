@@ -28,5 +28,25 @@ function renderPlanPageNav(string $activeSlug = ''): string
     $links[] = '<a href="duty.php"' . $dutyActive . '>График дежурств</a>';
     $links[] = '<a href="vacation.php"' . $vacationActive . '>График отпусков</a>';
 
-    return '<nav>' . implode('', $links) . '</nav>';
+    $pbWidget = '<div class="pb-search" id="pbSearch">'
+        . '<div class="pb-search-box">'
+        .   '<input type="text" class="pb-search-input" id="pbInput"'
+        .     ' placeholder="Поиск по справочнику…" autocomplete="off" spellcheck="false" />'
+        .   '<button class="pb-clear-btn" id="pbClear" title="Очистить" aria-label="Очистить" hidden>'
+        .     '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">'
+        .       '<path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+        .     '</svg>'
+        .   '</button>'
+        .   '<button class="pb-search-btn" id="pbBtn" title="Найти" aria-label="Найти">'
+        .     '<svg width="15" height="15" viewBox="0 0 15 15" fill="none">'
+        .       '<circle cx="6" cy="6" r="4.2" stroke="currentColor" stroke-width="1.7"/>'
+        .       '<path d="M9.5 9.5l3.2 3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+        .     '</svg>'
+        .   '</button>'
+        . '</div>'
+        . '<div class="pb-dropdown" id="pbDropdown" hidden></div>'
+        . '</div>'
+        . '<script src="phonebook.js" defer></script>';
+
+    return '<nav>' . implode('', $links) . '</nav>' . $pbWidget;
 }
