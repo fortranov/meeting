@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'phonebook-proxy.php';
+  const API_BASE = 'http://10.202.168.72/api.php';
 
   const input     = document.getElementById('pbInput');
   const clearBtn  = document.getElementById('pbClear');
@@ -57,7 +57,14 @@
       url.searchParams.set('q', q);
       url.searchParams.set('limit', '50');
 
-      const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      let resp;
+      try {
+        resp = await fetch(url.toString(), { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
 
