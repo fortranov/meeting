@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'http://10.202.168.72/api.php';
+  const API_BASE = 'phonebook-proxy.php';
 
   const input     = document.getElementById('pbInput');
   const clearBtn  = document.getElementById('pbClear');
