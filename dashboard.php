@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/nav.php';
 db();
 
@@ -21,6 +22,7 @@ $planPagesForBlocks = [];
 try {
     $planPagesForBlocks = db()->query('SELECT id, dash_title, sort_order FROM plan_page ORDER BY sort_order, id')->fetchAll();
     foreach ($planPagesForBlocks as $p) {
+        if (!checkPlanPageAccess((int)$p['id'])['can_view']) continue;
         $blockMetas[] = [
             'id'          => 'planTasks_' . (int)$p['id'],
             'name'        => $p['dash_title'],
@@ -90,8 +92,9 @@ foreach ($blockMetas as $m):
 ?>
 <script src="blocks/planTasks/planTasks.js"></script>
 <?php
-            // Register factory for each plan page
+            // Register factory for each accessible plan page
             foreach ($planPagesForBlocks as $p):
+                if (!checkPlanPageAccess((int)$p['id'])['can_view']) continue;
 ?>
 <script>if(window.PLAN_TASKS_BLOCK_FACTORY) PLAN_TASKS_BLOCK_FACTORY(<?= (int)$p['id'] ?>, <?= json_encode($p['dash_title']) ?>);</script>
 <?php

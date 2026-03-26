@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/access.php';
 
 /**
  * Render the main navigation bar with plan pages.
@@ -13,6 +14,7 @@ function renderPlanPageNav(string $activeSlug = ''): string
     try {
         $pages = db()->query('SELECT id, menu_title FROM plan_page ORDER BY sort_order, id')->fetchAll();
         foreach ($pages as $p) {
+            if (!checkPlanPageAccess((int)$p['id'])['can_view']) continue;
             $href   = 'planpage.php?id=' . (int)$p['id'];
             $active = ($activeSlug === 'planpage_' . (int)$p['id']) ? ' class="active"' : '';
             $links[] = '<a href="' . htmlspecialchars($href) . '"' . $active . '>'
@@ -25,8 +27,12 @@ function renderPlanPageNav(string $activeSlug = ''): string
     $dutyActive    = $activeSlug === 'duty'     ? ' class="active"' : '';
     $vacationActive = $activeSlug === 'vacation' ? ' class="active"' : '';
 
-    $links[] = '<a href="duty.php"' . $dutyActive . '>График дежурств</a>';
-    $links[] = '<a href="vacation.php"' . $vacationActive . '>График отпусков</a>';
+    if (checkPageAccess('duty')['can_view']) {
+        $links[] = '<a href="duty.php"' . $dutyActive . '>График дежурств</a>';
+    }
+    if (checkPageAccess('vacation')['can_view']) {
+        $links[] = '<a href="vacation.php"' . $vacationActive . '>График отпусков</a>';
+    }
 
     $pbWidget = '<div class="pb-search" id="pbSearch">'
         . '<div class="pb-search-box">'
