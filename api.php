@@ -1324,12 +1324,15 @@ function dashboardTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date,
+        "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+                ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM task t
+         LEFT JOIN task_status ts ON ts.name = t.status
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          WHERE t.start_date <= :today AND t.end_date >= :today
+           AND t.status != 'Выполнено'
          GROUP BY t.id
          ORDER BY t.end_date, t.start_date, t.id"
     );
@@ -1345,12 +1348,15 @@ function dashboardControlTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date,
+        "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+                ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM control_task t
+         LEFT JOIN task_status ts ON ts.name = t.status
          LEFT JOIN control_task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          WHERE t.start_date <= :today AND t.end_date >= :today
+           AND t.status != 'Выполнено'
          GROUP BY t.id
          ORDER BY t.end_date, t.start_date, t.id"
     );
@@ -1901,13 +1907,16 @@ function dashboardPlanTasksAction(): void
 
     try {
         $stmt = $pdo->prepare(
-            "SELECT t.id, t.title, t.start_date, t.end_date,
+            "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+                    ts.color,
                     GROUP_CONCAT(p.last_name, ', ') AS responsible
              FROM plan_task t
+             LEFT JOIN task_status ts ON ts.name = t.status
              LEFT JOIN plan_task_person tp ON tp.task_id = t.id
              LEFT JOIN person p ON p.id = tp.person_id
              WHERE t.plan_page_id = :ppid
                AND t.start_date <= :today AND t.end_date >= :today
+               AND t.status != 'Выполнено'
              GROUP BY t.id
              ORDER BY t.end_date, t.start_date, t.id"
         );

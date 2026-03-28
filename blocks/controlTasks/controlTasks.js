@@ -18,8 +18,16 @@ window.BLOCK_REGISTRY.controlTasks = async function renderControlTasksBlock(el) 
       return `${d}.${m}`;
     };
 
+    const rowBg = color => {
+      if (!color) return '';
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      return ` style="background:rgba(${r},${g},${b},0.10)"`;
+    };
+
     el.querySelector('.dash-block-body').innerHTML = tasks.map(t => `
-      <div class="dash-task-row">
+      <div class="dash-task-row"${rowBg(t.color)}>
         <div class="dash-task-title">${t.title}</div>
         <div class="dash-task-meta">
           <span class="dash-task-dates">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</span>
