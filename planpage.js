@@ -29,7 +29,8 @@ async function init() {
   initTooltip();
   bindEvents();
   await loadSiteSettings();
-  await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
+  await loadStatuses();
+  await Promise.all([loadTimeline(), loadAllPersons(), loadHolidays()]);
 }
 
 function initTooltip() {
