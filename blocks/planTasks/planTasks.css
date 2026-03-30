@@ -8,6 +8,9 @@
 .dash-task-row--subtask {
   padding-left: 32px;
 }
+.dash-task-title--overdue {
+  color: #c0392b;
+}
 .dash-task-title {
   font-size: 0.85rem;
   font-weight: 500;

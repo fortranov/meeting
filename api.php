@@ -1915,7 +1915,7 @@ function dashboardPlanTasksAction(): void
              LEFT JOIN plan_task_person tp ON tp.task_id = t.id
              LEFT JOIN person p ON p.id = tp.person_id
              WHERE t.plan_page_id = :ppid
-               AND t.start_date <= :today AND t.end_date >= :today
+               AND t.start_date <= :today
                AND t.status != 'Выполнено'
              GROUP BY t.id
              ORDER BY t.end_date, t.start_date, t.id"

@@ -17,6 +17,8 @@ window.PLAN_TASKS_BLOCK_FACTORY = function(pageId, dashTitle) {
         return;
       }
 
+      const today = new Date().toISOString().slice(0, 10);
+
       const fmtDate = s => {
         const [, m, d] = s.split('-');
         return `${d}.${m}`;
@@ -32,7 +34,7 @@ window.PLAN_TASKS_BLOCK_FACTORY = function(pageId, dashTitle) {
 
       el.querySelector('.dash-block-body').innerHTML = tasks.map(t => `
         <div class="dash-task-row${t.parent_task_id ? ' dash-task-row--subtask' : ''}"${rowBg(t.color)}>
-          <div class="dash-task-title">${t.title}</div>
+          <div class="dash-task-title${t.end_date < today ? ' dash-task-title--overdue' : ''}">${t.title}</div>
           <div class="dash-task-meta">
             <span class="dash-task-dates">${fmtDate(t.start_date)} – ${fmtDate(t.end_date)}</span>
             <span class="dash-task-persons">${t.responsible || ''}</span>
