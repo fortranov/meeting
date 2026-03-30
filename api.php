@@ -1324,7 +1324,7 @@ function dashboardTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+        "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
                 ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM task t
@@ -1348,7 +1348,7 @@ function dashboardControlTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+        "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
                 ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM control_task t
@@ -1907,7 +1907,7 @@ function dashboardPlanTasksAction(): void
 
     try {
         $stmt = $pdo->prepare(
-            "SELECT t.id, t.title, t.start_date, t.end_date, t.status,
+            "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
                     ts.color,
                     GROUP_CONCAT(p.last_name, ', ') AS responsible
              FROM plan_task t
