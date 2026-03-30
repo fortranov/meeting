@@ -1918,7 +1918,7 @@ function dashboardPlanTasksAction(): void
                AND t.start_date <= :today
                AND t.status != 'Выполнено'
              GROUP BY t.id
-             ORDER BY t.end_date, t.start_date, t.id"
+             ORDER BY t.sort_order, t.start_date, t.id"
         );
         $stmt->execute([':ppid' => $pageId, ':today' => $today]);
         jsonResponse(['tasks' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
