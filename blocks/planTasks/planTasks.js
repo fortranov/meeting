@@ -32,7 +32,20 @@ window.PLAN_TASKS_BLOCK_FACTORY = function(pageId, dashTitle) {
         return ` style="background:rgba(${r},${g},${b},0.10)"`;
       };
 
-      el.querySelector('.dash-block-body').innerHTML = tasks.map(t => `
+      // Re-order: each parent task must appear before its subtasks.
+      // Build index by id, then walk parent tasks in order and inject subtasks after each.
+      const taskById = Object.fromEntries(tasks.map(t => [t.id, t]));
+      const parents  = tasks.filter(t => !t.parent_task_id);
+      const childrenOf = {};
+      tasks.forEach(t => {
+        if (t.parent_task_id) (childrenOf[t.parent_task_id] = childrenOf[t.parent_task_id] || []).push(t);
+      });
+      const ordered = [];
+      parents.forEach(p => { ordered.push(p); (childrenOf[p.id] || []).forEach(c => ordered.push(c)); });
+      // Any orphan subtasks (parent filtered out) appended at the end
+      tasks.filter(t => t.parent_task_id && !taskById[t.parent_task_id]).forEach(t => ordered.push(t));
+
+      el.querySelector('.dash-block-body').innerHTML = ordered.map(t => `
         <div class="dash-task-row${t.parent_task_id ? ' dash-task-row--subtask' : ''}"${rowBg(t.color)}>
           <div class="dash-task-title${t.end_date < today ? ' dash-task-title--overdue' : ''}">${t.title}</div>
           <div class="dash-task-meta">
