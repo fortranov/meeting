@@ -1907,10 +1907,12 @@ function dashboardPlanTasksAction(): void
 
     try {
         $stmt = $pdo->prepare(
-            "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+            "SELECT t.id, t.parent_task_id, t.session_id, s.title AS session_title,
+                    t.title, t.start_date, t.end_date, t.status,
                     ts.color,
                     GROUP_CONCAT(p.last_name, ', ') AS responsible
              FROM plan_task t
+             LEFT JOIN plan_session s ON s.id = t.session_id
              LEFT JOIN task_status ts ON ts.name = t.status
              LEFT JOIN plan_task_person tp ON tp.task_id = t.id
              LEFT JOIN person p ON p.id = tp.person_id
@@ -1918,7 +1920,7 @@ function dashboardPlanTasksAction(): void
                AND t.start_date <= :today
                AND t.status != 'Выполнено'
              GROUP BY t.id
-             ORDER BY t.sort_order, t.start_date, t.id"
+             ORDER BY s.session_date, s.id, t.sort_order, t.start_date, t.id"
         );
         $stmt->execute([':ppid' => $pageId, ':today' => $today]);
         jsonResponse(['tasks' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);

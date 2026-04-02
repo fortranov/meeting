@@ -1,3 +1,13 @@
+.dash-session-header {
+  padding: 6px 16px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
 .dash-task-row {
   padding: 8px 16px;
   border-bottom: 1px solid var(--border);
@@ -8,14 +18,23 @@
 .dash-task-row--subtask {
   padding-left: 32px;
 }
-.dash-task-title--overdue {
-  color: #c0392b;
-}
 .dash-task-title {
+  position: relative;
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--text);
   margin-bottom: 3px;
+}
+.dash-overdue-icon {
+  position: absolute;
+  left: -12px;
+  top: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--warning);
+  line-height: inherit;
+  pointer-events: none;
+  user-select: none;
 }
 .dash-task-meta {
   display: grid;
