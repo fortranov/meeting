@@ -113,16 +113,14 @@ if (!$access['can_view']) accessDeniedPage();
       <p class="settings-hint">Загрузите .docx файл со списком дней рождений. В таблицах файла ищутся строки, где первая колонка содержит дату в формате дд.мм.гггг, а вторая — ФИО.</p>
       <div class="birthday-upload-row">
         <input type="file" id="birthdayDocxFile" accept=".docx" />
-        <button id="birthdayUploadBtn">Загрузить и разобрать</button>
+        <button class="btn-add" id="birthdayUploadBtn">Загрузить и разобрать</button>
       </div>
-      <p id="birthdayCountInfo" class="settings-hint" style="margin-top:6px"></p>
-      <div class="row2" style="margin-top:12px">
+      <p id="birthdayCountInfo" class="settings-hint bday-count-info"></p>
+      <div class="bday-settings-row">
         <label>Дней назад<input id="birthdayDaysBack" type="number" min="0" value="2" /></label>
         <label>Дней вперёд<input id="birthdayDaysFwd" type="number" min="0" value="30" /></label>
       </div>
-      <div style="margin-top:12px">
-        <button id="saveBirthdaySettingsBtn">Сохранить настройки</button>
-      </div>
+      <button class="btn-add" id="saveBirthdaySettingsBtn">Сохранить настройки</button>
     </section>
 
   </div>

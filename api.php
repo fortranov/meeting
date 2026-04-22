@@ -1534,7 +1534,7 @@ function birthdaySettingsGetAction(): void
 
 function birthdaySettingsSaveAction(): void
 {
-    $body     = getBody();
+    $body     = getJsonPayload();
     $daysBack = max(0, (int)($body['days_back']    ?? 2));
     $daysFwd  = max(0, (int)($body['days_forward'] ?? 30));
 
