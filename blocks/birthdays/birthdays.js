@@ -1,7 +1,7 @@
 window.BLOCK_REGISTRY = window.BLOCK_REGISTRY || {};
 
 window.BLOCK_REGISTRY.birthdays = async function renderBirthdaysBlock(el) {
-  el.querySelector('.dash-block-title').textContent = 'Дни рождения в отделе';
+  el.querySelector('.dash-block-title').textContent = 'Дни рождения';
 
   try {
     const data     = await (await fetch('api.php?action=dashboard_birthdays')).json();

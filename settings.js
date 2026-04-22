@@ -11,7 +11,7 @@ let planTemplateTasksCache = {}; // keyed by plan_page_id
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules(), loadBirthdaySettings()]);
   // Force multi-column layout reflow after async data fills the cards
   const grid = document.querySelector('.settings-grid');
   if (grid) { grid.style.display = 'none'; grid.offsetHeight; grid.style.display = ''; }
@@ -47,6 +47,10 @@ function bindEvents() {
   document.getElementById('ipAccessEnabled').onchange = async function () {
     await api('site_settings_save', { ip_access_enabled: this.checked ? '1' : '0' });
   };
+
+  // Birthday settings
+  document.getElementById('birthdayUploadBtn').onclick = uploadBirthdayDocx;
+  document.getElementById('saveBirthdaySettingsBtn').onclick = saveBirthdaySettings;
 
   // Holidays
   document.getElementById('showAddHoliday').onclick = () => {
@@ -791,6 +795,51 @@ async function loadModules() {
       localStorage.setItem(ENABLED_KEY, JSON.stringify([...current]));
     });
   });
+}
+
+// ─── Birthday Settings ────────────────────────────────────
+
+async function loadBirthdaySettings() {
+  const data = await api('birthday_settings_get');
+  document.getElementById('birthdayDaysBack').value = data.days_back ?? 2;
+  document.getElementById('birthdayDaysFwd').value  = data.days_forward ?? 30;
+  updateBirthdayCount(data.count ?? 0);
+}
+
+function updateBirthdayCount(count) {
+  const el = document.getElementById('birthdayCountInfo');
+  if (el) el.textContent = count > 0 ? `Загружено записей: ${count}` : 'Записи не загружены';
+}
+
+async function saveBirthdaySettings() {
+  const daysBack = parseInt(document.getElementById('birthdayDaysBack').value, 10) || 0;
+  const daysFwd  = parseInt(document.getElementById('birthdayDaysFwd').value, 10)  || 0;
+  await api('birthday_settings_save', { days_back: daysBack, days_forward: daysFwd });
+}
+
+async function uploadBirthdayDocx() {
+  const input = document.getElementById('birthdayDocxFile');
+  const file  = input.files?.[0];
+  if (!file) { alert('Выберите .docx файл'); return; }
+
+  const btn = document.getElementById('birthdayUploadBtn');
+  btn.disabled = true;
+  btn.textContent = 'Загрузка…';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await fetch('api.php?action=birthday_docx_upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert('Ошибка: ' + data.error); return; }
+    updateBirthdayCount(data.count ?? 0);
+    input.value = '';
+  } catch {
+    alert('Ошибка при загрузке файла');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Загрузить и разобрать';
+  }
 }
 
 init();

@@ -196,6 +196,17 @@ try {
         case 'dashboard_birthdays':
             dashboardBirthdaysAction();
             break;
+        case 'birthday_settings_get':
+            birthdaySettingsGetAction();
+            break;
+        case 'birthday_settings_save':
+            requirePost();
+            birthdaySettingsSaveAction();
+            break;
+        case 'birthday_docx_upload':
+            requirePost();
+            birthdayDocxUploadAction();
+            break;
         case 'plan_pages':
             planPagesAction();
             break;
@@ -1426,59 +1437,71 @@ function dashboardBlocksAction(): void
 
 function dashboardBirthdaysAction(): void
 {
-    $pdo     = db();
-    $today   = new DateTime('today');
+    $today    = new DateTime('today');
     $thisYear = (int)$today->format('Y');
 
-    $persons = $pdo->query(
-        "SELECT full_name, first_name, last_name, birth_date FROM person
-         WHERE birth_date IS NOT NULL AND birth_date != ''
-         ORDER BY first_name, last_name"
-    )->fetchAll(PDO::FETCH_ASSOC);
+    // Load days_back / days_forward from settings file
+    $settingsFile = __DIR__ . '/data/birthday_settings.json';
+    $daysBack = 2;
+    $daysFwd  = 30;
+    if (file_exists($settingsFile)) {
+        $s = json_decode(file_get_contents($settingsFile), true);
+        if (is_array($s)) {
+            $daysBack = (int)($s['days_back']    ?? 2);
+            $daysFwd  = (int)($s['days_forward'] ?? 30);
+        }
+    }
+
+    // Load birthdays from file
+    $bdFile = __DIR__ . '/data/birthdays.json';
+    if (!file_exists($bdFile)) {
+        jsonResponse(['today' => [], 'past' => [], 'upcoming' => []]);
+        return;
+    }
+    $bdData  = json_decode(file_get_contents($bdFile), true);
+    $persons = $bdData['birthdays'] ?? [];
 
     $todayList    = [];
     $pastList     = [];
     $upcomingList = [];
 
     foreach ($persons as $p) {
-        try {
-            $bd = new DateTime($p['birth_date']);
-        } catch (\Exception $e) {
-            continue;
-        }
+        $dateStr = $p['full_date'] ?? $p['date'];
+        $parts   = explode('.', $dateStr);
+        if (count($parts) < 2) continue;
 
-        $md   = $bd->format('m-d');
-        $name = trim($p['first_name'] . ' ' . $p['last_name']) ?: trim($p['full_name']);
-        $date = $bd->format('d.m');
+        $day   = $parts[0];
+        $month = $parts[1];
+        $md    = $month . '-' . $day;
+        $name  = $p['name'];
+        $date  = $day . '.' . $month;
 
-        // Try this year's birthday; handle Feb 29 on non-leap years
         try {
             $bday = new DateTime($thisYear . '-' . $md);
-        } catch (\Exception $e) {
-            // Feb 29 → use Mar 1 in non-leap years
+        } catch (\Exception) {
             $bday = new DateTime($thisYear . '-03-01');
         }
 
-        $diff  = $today->diff($bday);
-        $days  = (int)$diff->days;
+        $diff   = $today->diff($bday);
+        $days   = (int)$diff->days;
         $isPast = (bool)$diff->invert;
 
         if ($days === 0) {
             $todayList[] = ['name' => $name, 'date' => $date];
-        } elseif ($isPast && $days <= 2) {
+        } elseif ($isPast && $days <= $daysBack) {
             $pastList[] = ['name' => $name, 'date' => $date, 'days_ago' => $days];
-        } elseif (!$isPast && $days <= 30) {
+        } elseif (!$isPast && $days <= $daysFwd) {
             $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $days];
         } elseif ($isPast) {
-            // Check if next year's birthday falls within upcoming 30 days (year-wrap)
+            // Check year-wrap: next year's birthday within upcoming window
             try {
                 $bdayNext = new DateTime(($thisYear + 1) . '-' . $md);
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 $bdayNext = new DateTime(($thisYear + 1) . '-03-01');
             }
             $diffNext = $today->diff($bdayNext);
             $daysNext = (int)$diffNext->days;
-            if ($daysNext >= 1 && $daysNext <= 30) {
+            if ($daysNext >= 1 && $daysNext <= $daysFwd) {
                 $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $daysNext];
             }
         }
@@ -1487,6 +1510,126 @@ function dashboardBirthdaysAction(): void
     usort($upcomingList, fn($a, $b) => $a['days_till'] <=> $b['days_till']);
 
     jsonResponse(['today' => $todayList, 'past' => $pastList, 'upcoming' => $upcomingList]);
+}
+
+function birthdaySettingsGetAction(): void
+{
+    $settingsFile = __DIR__ . '/data/birthday_settings.json';
+    $settings = ['days_back' => 2, 'days_forward' => 30];
+    if (file_exists($settingsFile)) {
+        $s = json_decode(file_get_contents($settingsFile), true);
+        if (is_array($s)) $settings = array_merge($settings, $s);
+    }
+
+    $count  = 0;
+    $bdFile = __DIR__ . '/data/birthdays.json';
+    if (file_exists($bdFile)) {
+        $d = json_decode(file_get_contents($bdFile), true);
+        $count = count($d['birthdays'] ?? []);
+    }
+
+    $settings['count'] = $count;
+    jsonResponse($settings);
+}
+
+function birthdaySettingsSaveAction(): void
+{
+    $body     = getBody();
+    $daysBack = max(0, (int)($body['days_back']    ?? 2));
+    $daysFwd  = max(0, (int)($body['days_forward'] ?? 30));
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    file_put_contents(
+        $dir . '/birthday_settings.json',
+        json_encode(['days_back' => $daysBack, 'days_forward' => $daysFwd], JSON_PRETTY_PRINT)
+    );
+    jsonResponse(['ok' => true]);
+}
+
+function birthdayDocxUploadAction(): void
+{
+    if (empty($_FILES['file']['tmp_name'])) {
+        jsonResponse(['error' => 'Файл не загружен'], 400);
+        return;
+    }
+
+    $tmpFile = $_FILES['file']['tmp_name'];
+    $zip = new ZipArchive();
+    if ($zip->open($tmpFile) !== true) {
+        jsonResponse(['error' => 'Не удалось открыть файл — убедитесь, что это корректный .docx'], 400);
+        return;
+    }
+
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+
+    if ($xml === false) {
+        jsonResponse(['error' => 'Файл не содержит document.xml — неверный формат'], 400);
+        return;
+    }
+
+    $dom = new DOMDocument();
+    if (!@$dom->loadXML($xml)) {
+        jsonResponse(['error' => 'Не удалось разобрать XML документа'], 400);
+        return;
+    }
+
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+    $birthdays = [];
+
+    foreach ($xpath->query('//w:tbl') as $table) {
+        foreach ($xpath->query('w:tr', $table) as $row) {
+            $cells = $xpath->query('w:tc', $row);
+            if ($cells->length < 2) continue;
+
+            // Extract text from first cell
+            $firstCell = '';
+            foreach ($xpath->query('.//w:t', $cells->item(0)) as $t) {
+                $firstCell .= $t->nodeValue;
+            }
+            $firstCell = trim($firstCell);
+
+            // Must match dd.mm.YYYY
+            if (!preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $firstCell)) continue;
+
+            // Extract name from second cell
+            $nameRaw = '';
+            foreach ($xpath->query('.//w:t', $cells->item(1)) as $t) {
+                $nameRaw .= $t->nodeValue;
+            }
+            $nameRaw = trim($nameRaw);
+            if ($nameRaw === '') continue;
+
+            // Normalize: each word — lowercase, first letter uppercase
+            $words = preg_split('/\s+/', $nameRaw);
+            $normalized = array_map(function (string $w): string {
+                if ($w === '') return '';
+                return mb_strtoupper(mb_substr($w, 0, 1, 'UTF-8'), 'UTF-8')
+                     . mb_strtolower(mb_substr($w, 1, null, 'UTF-8'), 'UTF-8');
+            }, $words);
+            $name = implode(' ', array_filter($normalized));
+
+            $birthdays[] = [
+                'name'      => $name,
+                'date'      => substr($firstCell, 0, 5), // dd.mm
+                'full_date' => $firstCell,               // dd.mm.YYYY
+            ];
+        }
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    file_put_contents(
+        $dir . '/birthdays.json',
+        json_encode(['birthdays' => $birthdays], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+    );
+
+    jsonResponse(['ok' => true, 'count' => count($birthdays)]);
 }
 
 // ─── Plan Page System ─────────────────────────────────────────────────────────
