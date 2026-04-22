@@ -58,18 +58,20 @@ $hasTopic     = (int)$page['has_topic'];
 </header>
 <main class="page">
   <section class="plan-board">
-    <div class="board-controls">
-      <h1><?= htmlspecialchars($page['title']) ?></h1>
-      <div class="board-nav">
-        <button id="prevWeek">← Назад</button>
-        <button id="nextWeek">Вперёд →</button>
-        <button id="addMeetingBtn">+ <?= $sessionLabel ?></button>
+    <div class="plan-header-sticky">
+      <div class="board-controls">
+        <h1><?= htmlspecialchars($page['title']) ?></h1>
+        <div class="board-nav">
+          <button id="prevWeek">← Назад</button>
+          <button id="nextWeek">Вперёд →</button>
+          <button id="addMeetingBtn">+ <?= $sessionLabel ?></button>
+        </div>
       </div>
-    </div>
-    <div class="table-outer">
       <div class="table-header-wrap">
         <div id="timelineHeader" class="timeline-table"></div>
       </div>
+    </div>
+    <div class="table-outer">
       <div class="table-body-wrap">
         <div id="timelineTable" class="timeline-table"></div>
       </div>

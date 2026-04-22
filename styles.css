@@ -239,11 +239,16 @@ body {
   padding: 14px 16px;
 }
 
-/* ─── Board controls ─── */
-.board-controls {
+/* ─── Plan sticky header (board-controls + table header together) ─── */
+.plan-header-sticky {
   position: sticky;
   top: 52px;
   z-index: 22;
+  background: var(--surface);
+}
+
+/* ─── Board controls ─── */
+.board-controls {
   background: var(--surface);
   display: flex;
   justify-content: space-between;
@@ -329,7 +334,8 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .plan-board .table-header-wrap {
-  top: calc(52px + var(--bc-h, 0px));
+  position: relative;
+  top: auto;
 }
 .table-body-wrap { overflow-x: auto; }
 
