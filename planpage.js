@@ -118,6 +118,14 @@ function bindEvents() {
   const headerWrap = document.querySelector('.table-header-wrap');
   bodyWrap.addEventListener('scroll', () => { headerWrap.scrollLeft = bodyWrap.scrollLeft; });
 
+  const bc = document.querySelector('.board-controls');
+  if (bc) {
+    const syncBcHeight = () =>
+      document.documentElement.style.setProperty('--bc-h', bc.offsetHeight + 'px');
+    syncBcHeight();
+    new ResizeObserver(syncBcHeight).observe(bc);
+  }
+
   const search = document.getElementById('personSearch');
   const dropdown = document.getElementById('personDropdown');
   search.oninput = async () => {

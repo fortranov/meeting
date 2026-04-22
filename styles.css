@@ -243,7 +243,7 @@ body {
 .board-controls {
   position: sticky;
   top: 52px;
-  z-index: 20;
+  z-index: 22;
   background: var(--surface);
   display: flex;
   justify-content: space-between;
@@ -323,10 +323,13 @@ body {
 .table-header-wrap {
   position: sticky;
   top: 52px;
-  z-index: 20;
+  z-index: 21;
   overflow: hidden;
   border-radius: 12px 12px 0 0;
   border-bottom: 1px solid var(--border);
+}
+.plan-board .table-header-wrap {
+  top: calc(52px + var(--bc-h, 0px));
 }
 .table-body-wrap { overflow-x: auto; }
 
