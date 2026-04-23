@@ -202,15 +202,15 @@ async function saveDashTask() {
 }
 
 // ── Factory — called once per plan_page by dashboard.php ─────────────────
-window.PLAN_TASKS_BLOCK_FACTORY = function(pageId, dashTitle) {
+window.PLAN_TASKS_BLOCK_FACTORY = function(pageId, dashTitle, canEdit) {
   const blockId = 'planTasks_' + pageId;
 
   async function renderBlock(el) {
     el.querySelector('.dash-block-title').textContent = dashTitle;
 
-    // Add "+" button to header once
+    // Add "+" button to header once (only if user has edit access)
     const header = el.querySelector('.dash-block-header');
-    if (!header.querySelector('.dash-block-add-btn')) {
+    if (canEdit && !header.querySelector('.dash-block-add-btn')) {
       const btn = document.createElement('button');
       btn.className = 'dash-block-add-btn';
       btn.title     = 'Создать задачу';

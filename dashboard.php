@@ -94,9 +94,10 @@ foreach ($blockMetas as $m):
 <?php
             // Register factory for each accessible plan page
             foreach ($planPagesForBlocks as $p):
-                if (!checkPlanPageAccess((int)$p['id'])['can_view']) continue;
+                $pAcc = checkPlanPageAccess((int)$p['id']);
+                if (!$pAcc['can_view']) continue;
 ?>
-<script>if(window.PLAN_TASKS_BLOCK_FACTORY) PLAN_TASKS_BLOCK_FACTORY(<?= (int)$p['id'] ?>, <?= json_encode($p['dash_title']) ?>);</script>
+<script>if(window.PLAN_TASKS_BLOCK_FACTORY) PLAN_TASKS_BLOCK_FACTORY(<?= (int)$p['id'] ?>, <?= json_encode($p['dash_title']) ?>, <?= $pAcc['can_edit'] ? 'true' : 'false' ?>);</script>
 <?php
             endforeach;
         endif;
