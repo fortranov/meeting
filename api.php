@@ -1670,16 +1670,9 @@ function gsrDebugAction(): void
             $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
         }
 
-        // Shell-level checks
-        $info['shell_disabled'] = (ini_get('disable_functions') !== '' && str_contains(ini_get('disable_functions'), 'exec'));
-        if (!$info['shell_disabled'] && $win !== '') {
-            $dirOut = [];
-            exec('dir "' . $win . '" 2>&1', $dirOut);
-            $info['shell_dir'] = implode("\n", array_map(fn($l) => mb_convert_encoding($l, 'UTF-8', 'CP1251'), $dirOut));
-            $netOut = [];
-            exec('net use 2>&1', $netOut);
-            $info['shell_net_use'] = implode("\n", array_map(fn($l) => mb_convert_encoding($l, 'UTF-8', 'CP1251'), $netOut));
-        }
+        // Shell-level checks via gsrShellList
+        $info['shell_list_base'] = gsrShellList($base, 'D');
+        $info['shell_list_ok']   = $info['shell_list_base'] !== null;
     } catch (\Throwable $e) {
         $info['exception'] = $e->getMessage();
     }
@@ -1710,29 +1703,49 @@ function gsrWinPath(string $utf8): string
     return $utf8;
 }
 
+/**
+ * List entries in a directory using `cmd /c dir` so it works with
+ * UNC paths and Cyrillic names that confuse PHP's native file functions.
+ * Returns array of entry names (UTF-8), or null on failure.
+ * $type: 'D' = dirs only, 'F' = files only, '' = both.
+ */
+function gsrShellList(string $dir, string $type = ''): ?array
+{
+    $win = gsrWinPath($dir);
+    $attr = $type === 'D' ? '/AD' : ($type === 'F' ? '/A-D' : '');
+    $cmd = 'cmd /c dir /b ' . $attr . ' "' . $win . '" 2>nul';
+    $out = [];
+    exec($cmd, $out, $code);
+    if ($code !== 0 && empty($out)) return null;
+    $oem = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('oem') : 866);
+    return array_values(array_map(
+        fn($e) => function_exists('iconv')
+            ? (@iconv($oem, 'UTF-8//IGNORE', $e) ?: $e)
+            : (@mb_convert_encoding($e, 'UTF-8', $oem) ?: $e),
+        array_filter($out, fn($e) => $e !== '')
+    ));
+}
+
 function gsrResolveFilePath(array $settings): array
 {
     $raw        = trim($settings['folder_path'] ?? '');
     $filePrefix = trim($settings['file_name'] ?? '');
     if (!$raw || !$filePrefix) return [null, '(настройки не заданы)'];
 
-    // Normalise to backslash, strip trailing separator
     $base = rtrim(str_replace('/', '\\', $raw), '\\');
 
-    // Check base path accessibility first
-    if (!is_dir(gsrWinPath($base))) {
+    // Check base path accessibility
+    $baseEntries = gsrShellList($base, 'D');
+    if ($baseEntries === null) {
         return [null, "базовая папка недоступна: {$base}"];
     }
 
-    $yearPath = $base . '\\' . date('Y');
-    if (!is_dir(gsrWinPath($yearPath))) {
-        $entries = @scandir(gsrWinPath($base)) ?: [];
-        $subdirs = array_filter($entries, fn($e) => $e !== '.' && $e !== '..' && is_dir(gsrWinPath($base . '\\' . $e)));
-        $hint = count($subdirs)
-            ? ' (папки внутри: ' . implode(', ', array_slice(array_values($subdirs), 0, 5)) . ')'
-            : ' (папка пустая или нет подпапок)';
-        return [null, "папка года не найдена: {$yearPath}{$hint}"];
+    $year = date('Y');
+    if (!in_array($year, $baseEntries)) {
+        $hint = count($baseEntries) ? ' (папки внутри: ' . implode(', ', array_slice($baseEntries, 0, 5)) . ')' : ' (папка пустая)';
+        return [null, "папка года не найдена: {$base}\\{$year}{$hint}"];
     }
+    $yearPath = $base . '\\' . $year;
 
     $monthPath = gsrFindSubfolder($yearPath, date('m'));
     if (!$monthPath) {
@@ -1755,11 +1768,10 @@ function gsrResolveFilePath(array $settings): array
 /** Return the first subdirectory whose name starts with $prefix, or null. */
 function gsrFindSubfolder(string $parent, string $prefix): ?string
 {
-    $entries = @scandir(gsrWinPath($parent));
-    if (!$entries) return null;
+    $entries = gsrShellList($parent, 'D');
+    if ($entries === null) return null;
     foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix) && is_dir(gsrWinPath($parent . '\\' . $entry))) {
+        if (str_starts_with($entry, $prefix)) {
             return $parent . '\\' . $entry;
         }
     }
@@ -1769,11 +1781,10 @@ function gsrFindSubfolder(string $parent, string $prefix): ?string
 /** Return the first file whose name starts with $prefix, or null. */
 function gsrFindFile(string $dir, string $prefix): ?string
 {
-    $entries = @scandir(gsrWinPath($dir));
-    if (!$entries) return null;
+    $entries = gsrShellList($dir, 'F');
+    if ($entries === null) return null;
     foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix) && is_file(gsrWinPath($dir . '\\' . $entry))) {
+        if (str_starts_with($entry, $prefix)) {
             return $dir . '\\' . $entry;
         }
     }
