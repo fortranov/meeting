@@ -1642,54 +1642,8 @@ function gsrDataAction(): void
  */
 function gsrDebugAction(): void
 {
-    $info = [];
-
-    try {
-        $sf = __DIR__ . '/data/gsr_settings.json';
-        $info['settings_file_exists'] = file_exists($sf);
-        $info['settings_file_path']   = $sf;
-
-        $settings = $info['settings_file_exists']
-            ? (json_decode(file_get_contents($sf), true) ?? [])
-            : [];
-
-        $raw  = trim($settings['folder_path'] ?? '');
-        $base = rtrim(str_replace('/', '\\', $raw), '\\');
-
-        $info['php_os']        = PHP_OS;
-        $info['php_os_family'] = PHP_OS_FAMILY;
-        $info['sapi']          = PHP_SAPI;
-        $info['open_basedir']  = ini_get('open_basedir') ?: '(не задан)';
-        $info['iconv_exists']  = function_exists('iconv');
-        $info['sapi_cp_fn']    = function_exists('sapi_windows_cp_get');
-        $info['ansi_cp']       = function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 'n/a';
-        $info['raw_path']      = $raw;
-        $info['base_utf8']     = $base;
-
-        if (function_exists('iconv') && $base !== '') {
-            $cp  = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 1251);
-            $win = @iconv('UTF-8', $cp . '//IGNORE', $base);
-            $info['base_win']        = ($win !== false) ? $win : '(iconv failed)';
-            $info['base_win_hex']    = $win !== false ? bin2hex($win) : '';
-            $info['is_dir_win']      = ($win !== false) ? is_dir($win) : false;
-        } else {
-            $info['base_win']   = $base;
-            $info['is_dir_win'] = false;
-        }
-
-        $info['is_dir_utf8'] = is_dir($base);
-
-        if ($info['is_dir_utf8'] || $info['is_dir_win']) {
-            $scanTarget = ($info['is_dir_win'] && isset($win) && $win !== false) ? $win : $base;
-            $entries = @scandir($scanTarget) ?: [];
-            $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
-        }
-
-    } catch (\Throwable $e) {
-        $info['exception'] = $e->getMessage();
-    }
-
-    echo json_encode($info, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    $out = '{"step1":"entered"}';
+    echo $out;
     exit;
 }
 
