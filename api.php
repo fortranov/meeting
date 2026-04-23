@@ -1639,24 +1639,32 @@ function gsrDataAction(): void
  */
 function gsrResolveFilePath(array $settings): array
 {
-    $base        = rtrim($settings['folder_path'] ?? '', '/\\');
-    $filePrefix  = trim($settings['file_name'] ?? '');
-    if (!$base || !$filePrefix) return [null, $base];
+    $raw        = trim($settings['folder_path'] ?? '');
+    $filePrefix = trim($settings['file_name'] ?? '');
+    if (!$raw || !$filePrefix) return [null, '(настройки не заданы)'];
 
-    $sep = DIRECTORY_SEPARATOR;
+    // Normalise to backslash, strip trailing separator
+    $base = rtrim(str_replace('/', '\\', $raw), '\\');
 
-    $yearPath = $base . $sep . date('Y');
-    if (!is_dir($yearPath)) return [null, $yearPath];
+    $yearPath = $base . '\\' . date('Y');
+    if (!is_dir($yearPath)) {
+        return [null, "папка года не найдена: {$yearPath}"];
+    }
 
     $monthPath = gsrFindSubfolder($yearPath, date('m'));
-    if (!$monthPath) return [null, $yearPath . $sep . date('m') . '_…'];
+    if (!$monthPath) {
+        return [null, "папка месяца не найдена в: {$yearPath} (искали начало «" . date('m') . "»)"];
+    }
 
     $dayPath = gsrFindSubfolder($monthPath, date('d'));
-    if (!$dayPath) return [null, $monthPath . $sep . date('d') . '…'];
+    if (!$dayPath) {
+        return [null, "папка дня не найдена в: {$monthPath} (искали начало «" . date('d') . "»)"];
+    }
 
-    // Find first file whose name starts with $filePrefix
     $filePath = gsrFindFile($dayPath, $filePrefix);
-    if (!$filePath) return [null, $dayPath];
+    if (!$filePath) {
+        return [null, "файл не найден в: {$dayPath} (искали начало «{$filePrefix}»)"];
+    }
 
     return [$filePath, $dayPath];
 }
@@ -1668,9 +1676,8 @@ function gsrFindSubfolder(string $parent, string $prefix): ?string
     if (!$entries) return null;
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix)
-            && is_dir($parent . DIRECTORY_SEPARATOR . $entry)) {
-            return $parent . DIRECTORY_SEPARATOR . $entry;
+        if (str_starts_with($entry, $prefix) && is_dir($parent . '\\' . $entry)) {
+            return $parent . '\\' . $entry;
         }
     }
     return null;
@@ -1683,9 +1690,8 @@ function gsrFindFile(string $dir, string $prefix): ?string
     if (!$entries) return null;
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix)
-            && is_file($dir . DIRECTORY_SEPARATOR . $entry)) {
-            return $dir . DIRECTORY_SEPARATOR . $entry;
+        if (str_starts_with($entry, $prefix) && is_file($dir . '\\' . $entry)) {
+            return $dir . '\\' . $entry;
         }
     }
     return null;
