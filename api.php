@@ -1669,6 +1669,17 @@ function gsrDebugAction(): void
             $entries = @scandir($scanTarget) ?: [];
             $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
         }
+
+        // Shell-level checks
+        $info['shell_disabled'] = (ini_get('disable_functions') !== '' && str_contains(ini_get('disable_functions'), 'exec'));
+        if (!$info['shell_disabled'] && $win !== '') {
+            $dirOut = [];
+            exec('dir "' . $win . '" 2>&1', $dirOut);
+            $info['shell_dir'] = implode("\n", array_map(fn($l) => mb_convert_encoding($l, 'UTF-8', 'CP1251'), $dirOut));
+            $netOut = [];
+            exec('net use 2>&1', $netOut);
+            $info['shell_net_use'] = implode("\n", array_map(fn($l) => mb_convert_encoding($l, 'UTF-8', 'CP1251'), $netOut));
+        }
     } catch (\Throwable $e) {
         $info['exception'] = $e->getMessage();
     }
