@@ -1659,8 +1659,8 @@ function gsrDebugAction(): void
         $info['ansi_cp']         = function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 'n/a';
         $info['raw_path']        = $raw;
         $info['base_utf8']       = $base;
-        $info['base_win']        = $win;
         $info['base_win_hex']    = bin2hex($win);
+        $info['base_win_utf8']   = @mb_convert_encoding($win, 'UTF-8', 'CP1251') ?: '(не удалось декодировать)';
         $info['is_dir_utf8']     = is_dir($base);
         $info['is_dir_win']      = ($win !== $base) ? is_dir($win) : $info['is_dir_utf8'];
 
