@@ -11,7 +11,7 @@ let planTemplateTasksCache = {}; // keyed by plan_page_id
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules(), loadBirthdaySettings()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules(), loadBirthdaySettings(), loadGsrSettings()]);
   // Force multi-column layout reflow after async data fills the cards
   const grid = document.querySelector('.settings-grid');
   if (grid) { grid.style.display = 'none'; grid.offsetHeight; grid.style.display = ''; }
@@ -47,6 +47,9 @@ function bindEvents() {
   document.getElementById('ipAccessEnabled').onchange = async function () {
     await api('site_settings_save', { ip_access_enabled: this.checked ? '1' : '0' });
   };
+
+  // GSR settings
+  document.getElementById('saveGsrSettingsBtn').onclick = saveGsrSettings;
 
   // Birthday settings
   document.getElementById('birthdayUploadBtn').onclick = uploadBirthdayDocx;
@@ -795,6 +798,48 @@ async function loadModules() {
       localStorage.setItem(ENABLED_KEY, JSON.stringify([...current]));
     });
   });
+}
+
+// ─── GSR Settings ─────────────────────────────────────────
+
+async function loadGsrSettings() {
+  const data = await api('gsr_settings_get');
+  document.getElementById('gsrFolderPath').value = data.folder_path              || '';
+  document.getElementById('gsrFileName').value   = data.file_name                || '';
+  document.getElementById('gsrTextResp').value   = data.text_before_responsible  || '';
+  document.getElementById('gsrTextCol1').value   = data.text_col1                || '';
+  document.getElementById('gsrTextRow1').value   = data.text_row1                || '';
+  document.getElementById('gsrTextRow2').value   = data.text_row2                || '';
+  document.getElementById('gsrTextRow3').value   = data.text_row3                || '';
+  document.getElementById('gsrTextRow4').value   = data.text_row4                || '';
+  updateGsrCacheInfo(data);
+}
+
+function updateGsrCacheInfo(data) {
+  const el = document.getElementById('gsrCacheInfo');
+  if (!el) return;
+  if (data.cache_error) {
+    el.textContent = `Ошибка последнего разбора: ${data.cache_error}`;
+  } else if (data.cache_parsed_at) {
+    el.textContent = `Последний разбор: ${data.cache_parsed_at}`;
+  } else {
+    el.textContent = 'Кэш не сформирован';
+  }
+}
+
+async function saveGsrSettings() {
+  const payload = {
+    folder_path:             document.getElementById('gsrFolderPath').value.trim(),
+    file_name:               document.getElementById('gsrFileName').value.trim(),
+    text_before_responsible: document.getElementById('gsrTextResp').value.trim(),
+    text_col1:               document.getElementById('gsrTextCol1').value.trim(),
+    text_row1:               document.getElementById('gsrTextRow1').value.trim(),
+    text_row2:               document.getElementById('gsrTextRow2').value.trim(),
+    text_row3:               document.getElementById('gsrTextRow3').value.trim(),
+    text_row4:               document.getElementById('gsrTextRow4').value.trim(),
+  };
+  await api('gsr_settings_save', payload);
+  document.getElementById('gsrCacheInfo').textContent = 'Настройки сохранены, кэш сброшен';
 }
 
 // ─── Birthday Settings ────────────────────────────────────

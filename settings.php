@@ -106,6 +106,29 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="modulesList" class="settings-list"></div>
     </section>
 
+    <section class="settings-card" id="gsrSettingsCard">
+      <div class="settings-card-header">
+        <h2>ГСР</h2>
+      </div>
+      <p class="settings-hint">Данные читаются из .docx файла в сетевой папке. Парсинг выполняется один раз в сутки после 6:00, результат кэшируется.</p>
+      <div class="gsr-settings-fields">
+        <label>Путь до папки с годом<input id="gsrFolderPath" type="text" placeholder="\\192.168.10.23\Общая\папка" /></label>
+        <label>Название файла<input id="gsrFileName" type="text" placeholder="файл.docx" /></label>
+        <label>Текст до ответственного по аппарату<input id="gsrTextResp" type="text" /></label>
+        <label>Текст первой колонки<input id="gsrTextCol1" type="text" /></label>
+        <div class="gsr-rows-grid">
+          <label>Текст первой строки<input id="gsrTextRow1" type="text" /></label>
+          <label>Текст второй строки<input id="gsrTextRow2" type="text" /></label>
+          <label>Текст третьей строки<input id="gsrTextRow3" type="text" /></label>
+          <label>Текст четвёртой строки<input id="gsrTextRow4" type="text" /></label>
+        </div>
+      </div>
+      <p id="gsrCacheInfo" class="settings-hint gsr-cache-info"></p>
+      <div class="gsr-settings-actions">
+        <button class="btn-add" id="saveGsrSettingsBtn">Сохранить настройки</button>
+      </div>
+    </section>
+
     <section class="settings-card" id="birthdaySettingsCard">
       <div class="settings-card-header">
         <h2>Дни рождения</h2>

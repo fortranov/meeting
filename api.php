@@ -199,6 +199,16 @@ try {
         case 'plan_sessions':
             planSessionsAction();
             break;
+        case 'gsr_data':
+            gsrDataAction();
+            break;
+        case 'gsr_settings_get':
+            gsrSettingsGetAction();
+            break;
+        case 'gsr_settings_save':
+            requirePost();
+            gsrSettingsSaveAction();
+            break;
         case 'birthday_settings_get':
             birthdaySettingsGetAction();
             break;
@@ -1513,6 +1523,248 @@ function dashboardBirthdaysAction(): void
     usort($upcomingList, fn($a, $b) => $a['days_till'] <=> $b['days_till']);
 
     jsonResponse(['today' => $todayList, 'past' => $pastList, 'upcoming' => $upcomingList]);
+}
+
+// ─── ГСР block ────────────────────────────────────────────────────────────────
+
+function gsrSettingsGetAction(): void
+{
+    $settingsFile = __DIR__ . '/data/gsr_settings.json';
+    $settings = file_exists($settingsFile)
+        ? (json_decode(file_get_contents($settingsFile), true) ?? [])
+        : [];
+
+    $cacheFile = __DIR__ . '/data/gsr_cache.json';
+    if (file_exists($cacheFile)) {
+        $c = json_decode(file_get_contents($cacheFile), true) ?? [];
+        $settings['cache_date']      = $c['date']      ?? null;
+        $settings['cache_parsed_at'] = $c['parsed_at'] ?? null;
+        $settings['cache_error']     = $c['error']     ?? null;
+    }
+    jsonResponse($settings);
+}
+
+function gsrSettingsSaveAction(): void
+{
+    $body = getJsonPayload();
+    $keys = ['folder_path','file_name','text_before_responsible',
+             'text_col1','text_row1','text_row2','text_row3','text_row4'];
+    $data = [];
+    foreach ($keys as $k) {
+        $data[$k] = trim((string)($body[$k] ?? ''));
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    file_put_contents($dir . '/gsr_settings.json',
+        json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    // Clear cache so next request re-parses with new settings
+    @unlink($dir . '/gsr_cache.json');
+
+    jsonResponse(['ok' => true]);
+}
+
+function gsrDataAction(): void
+{
+    $settingsFile = __DIR__ . '/data/gsr_settings.json';
+    if (!file_exists($settingsFile)) {
+        jsonResponse(['error' => 'Настройки блока ГСР не заданы', 'responsible' => '', 'rows' => []]);
+        return;
+    }
+    $settings = json_decode(file_get_contents($settingsFile), true) ?? [];
+
+    $today  = date('Y-m-d');
+    $now    = time();
+    $sixAm  = mktime(6, 0, 0);   // 06:00 today
+
+    // Before 6:00 — return cache from today if it exists, otherwise signal early
+    $cacheFile = __DIR__ . '/data/gsr_cache.json';
+    $cache     = [];
+    if (file_exists($cacheFile)) {
+        $cache = json_decode(file_get_contents($cacheFile), true) ?? [];
+    }
+
+    $cacheIsToday = ($cache['date'] ?? '') === $today;
+    $cacheAfter6  = $cacheIsToday && !empty($cache['parsed_at'])
+                    && strtotime($cache['parsed_at']) >= $sixAm;
+
+    // Valid cache: parsed today after 6:00
+    if ($cacheAfter6) {
+        jsonResponse($cache);
+        return;
+    }
+
+    // Too early — nothing cached for today yet
+    if ($now < $sixAm) {
+        jsonResponse(['status' => 'before_6am', 'responsible' => '', 'rows' => []]);
+        return;
+    }
+
+    // Parse the file
+    $filePath = gsrResolveFilePath($settings);
+    if (!$filePath) {
+        $result = ['error' => 'Файл не найден по заданному пути',
+                   'responsible' => '', 'rows' => [],
+                   'date' => $today, 'parsed_at' => date('Y-m-d H:i:s')];
+    } else {
+        $result = gsrParseFile($filePath, $settings);
+        $result['date']      = $today;
+        $result['parsed_at'] = date('Y-m-d H:i:s');
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    file_put_contents($cacheFile,
+        json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    jsonResponse($result);
+}
+
+/** Navigate year/month/day folders and return path to the target file, or null. */
+function gsrResolveFilePath(array $settings): ?string
+{
+    $base     = rtrim($settings['folder_path'] ?? '', '/\\');
+    $fileName = trim($settings['file_name'] ?? '');
+    if (!$base || !$fileName) return null;
+
+    $sep = DIRECTORY_SEPARATOR;
+
+    $yearPath = $base . $sep . date('Y');
+    if (!is_dir($yearPath)) return null;
+
+    $monthPath = gsrFindSubfolder($yearPath, date('m'));
+    if (!$monthPath) return null;
+
+    $dayPath = gsrFindSubfolder($monthPath, date('d'));
+    if (!$dayPath) return null;
+
+    $filePath = $dayPath . $sep . $fileName;
+    return file_exists($filePath) ? $filePath : null;
+}
+
+/** Return the first subdirectory whose name starts with $prefix, or null. */
+function gsrFindSubfolder(string $parent, string $prefix): ?string
+{
+    $entries = @scandir($parent);
+    if (!$entries) return null;
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') continue;
+        if (str_starts_with($entry, $prefix)
+            && is_dir($parent . DIRECTORY_SEPARATOR . $entry)) {
+            return $parent . DIRECTORY_SEPARATOR . $entry;
+        }
+    }
+    return null;
+}
+
+/** Open a .docx and extract ГСР data according to settings. */
+function gsrParseFile(string $filePath, array $settings): array
+{
+    $result = ['responsible' => '', 'rows' => ['', '', '', '']];
+
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) {
+        $result['error'] = 'Не удалось открыть файл';
+        return $result;
+    }
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+    if ($xml === false) {
+        $result['error'] = 'Файл не является корректным .docx';
+        return $result;
+    }
+
+    $dom = new DOMDocument();
+    if (!@$dom->loadXML($xml)) {
+        $result['error'] = 'Ошибка разбора XML документа';
+        return $result;
+    }
+
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('w',
+        'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+    // 1. Find responsible: paragraph containing the marker, take text after it
+    $markerResp = $settings['text_before_responsible'] ?? '';
+    if ($markerResp !== '') {
+        foreach ($xpath->query('//w:p') as $para) {
+            $text = gsrParaText($xpath, $para);
+            $pos  = mb_strpos($text, $markerResp);
+            if ($pos !== false) {
+                $result['responsible'] = trim(
+                    mb_substr($text, $pos + mb_strlen($markerResp))
+                );
+                break;
+            }
+        }
+    }
+
+    // 2. Scan tables for a row whose first cell contains text_col1,
+    //    then extract 3 words after each row-label from the second cell.
+    $col1Marker = $settings['text_col1'] ?? '';
+    $rowMarkers = [
+        $settings['text_row1'] ?? '',
+        $settings['text_row2'] ?? '',
+        $settings['text_row3'] ?? '',
+        $settings['text_row4'] ?? '',
+    ];
+
+    $found = false;
+    foreach ($xpath->query('//w:tbl') as $table) {
+        if ($found) break;
+        foreach ($xpath->query('w:tr', $table) as $row) {
+            $cells = $xpath->query('w:tc', $row);
+            if ($cells->length < 2) continue;
+
+            $cell1 = gsrCellText($xpath, $cells->item(0));
+            if ($col1Marker !== '' && mb_strpos($cell1, $col1Marker) === false) continue;
+
+            $cell2 = gsrCellText($xpath, $cells->item(1));
+            foreach ($rowMarkers as $i => $marker) {
+                if ($marker === '') continue;
+                $result['rows'][$i] = gsrExtractWordsAfter($cell2, $marker, 3);
+            }
+            $found = true;
+            break;
+        }
+    }
+
+    return $result;
+}
+
+/** All text in a paragraph (runs concatenated). */
+function gsrParaText(DOMXPath $xpath, DOMNode $para): string
+{
+    $text = '';
+    foreach ($xpath->query('.//w:t', $para) as $t) {
+        $text .= $t->nodeValue;
+    }
+    return $text;
+}
+
+/** All text in a table cell, paragraphs separated by a space. */
+function gsrCellText(DOMXPath $xpath, DOMNode $cell): string
+{
+    $parts = [];
+    foreach ($xpath->query('.//w:p', $cell) as $para) {
+        $text = '';
+        foreach ($xpath->query('.//w:t', $para) as $t) {
+            $text .= $t->nodeValue;
+        }
+        if ($text !== '') $parts[] = $text;
+    }
+    return implode(' ', $parts);
+}
+
+/** Return the first $count words found in $text after $marker (whitespace-normalised). */
+function gsrExtractWordsAfter(string $text, string $marker, int $count): string
+{
+    $pos = mb_strpos($text, $marker);
+    if ($pos === false) return '';
+    $after = mb_substr($text, $pos + mb_strlen($marker));
+    $words = array_values(array_filter(preg_split('/\s+/u', $after)));
+    return implode(' ', array_slice($words, 0, $count));
 }
 
 function birthdaySettingsGetAction(): void
