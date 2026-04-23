@@ -1637,6 +1637,20 @@ function gsrDataAction(): void
  *
  * @return array{0: string|null, 1: string}
  */
+/**
+ * Convert a UTF-8 path to the Windows system codepage so PHP file
+ * functions (is_dir / scandir / is_file) can resolve Cyrillic names.
+ * Returns the original string unchanged on non-Windows or when iconv
+ * is unavailable.
+ */
+function gsrWinPath(string $utf8): string
+{
+    if (PHP_OS_FAMILY !== 'Windows') return $utf8;
+    $cp = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 1251);
+    $converted = @iconv('UTF-8', $cp . '//IGNORE', $utf8);
+    return ($converted !== false && $converted !== '') ? $converted : $utf8;
+}
+
 function gsrResolveFilePath(array $settings): array
 {
     $raw        = trim($settings['folder_path'] ?? '');
@@ -1647,15 +1661,14 @@ function gsrResolveFilePath(array $settings): array
     $base = rtrim(str_replace('/', '\\', $raw), '\\');
 
     // Check base path accessibility first
-    if (!is_dir($base)) {
+    if (!is_dir(gsrWinPath($base))) {
         return [null, "базовая папка недоступна: {$base}"];
     }
 
     $yearPath = $base . '\\' . date('Y');
-    if (!is_dir($yearPath)) {
-        // Maybe the user already included the year in folder_path
-        $entries = @scandir($base) ?: [];
-        $subdirs = array_filter($entries, fn($e) => $e !== '.' && $e !== '..' && is_dir($base . '\\' . $e));
+    if (!is_dir(gsrWinPath($yearPath))) {
+        $entries = @scandir(gsrWinPath($base)) ?: [];
+        $subdirs = array_filter($entries, fn($e) => $e !== '.' && $e !== '..' && is_dir(gsrWinPath($base . '\\' . $e)));
         $hint = count($subdirs)
             ? ' (папки внутри: ' . implode(', ', array_slice(array_values($subdirs), 0, 5)) . ')'
             : ' (папка пустая или нет подпапок)';
@@ -1683,11 +1696,11 @@ function gsrResolveFilePath(array $settings): array
 /** Return the first subdirectory whose name starts with $prefix, or null. */
 function gsrFindSubfolder(string $parent, string $prefix): ?string
 {
-    $entries = @scandir($parent);
+    $entries = @scandir(gsrWinPath($parent));
     if (!$entries) return null;
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix) && is_dir($parent . '\\' . $entry)) {
+        if (str_starts_with($entry, $prefix) && is_dir(gsrWinPath($parent . '\\' . $entry))) {
             return $parent . '\\' . $entry;
         }
     }
@@ -1697,11 +1710,11 @@ function gsrFindSubfolder(string $parent, string $prefix): ?string
 /** Return the first file whose name starts with $prefix, or null. */
 function gsrFindFile(string $dir, string $prefix): ?string
 {
-    $entries = @scandir($dir);
+    $entries = @scandir(gsrWinPath($dir));
     if (!$entries) return null;
     foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..') continue;
-        if (str_starts_with($entry, $prefix) && is_file($dir . '\\' . $entry)) {
+        if (str_starts_with($entry, $prefix) && is_file(gsrWinPath($dir . '\\' . $entry))) {
             return $dir . '\\' . $entry;
         }
     }
@@ -1714,7 +1727,7 @@ function gsrParseFile(string $filePath, array $settings): array
     $result = ['responsible' => '', 'rows' => ['', '', '', '']];
 
     $zip = new ZipArchive();
-    if ($zip->open($filePath) !== true) {
+    if ($zip->open(gsrWinPath($filePath)) !== true) {
         $result['error'] = 'Не удалось открыть файл';
         return $result;
     }
