@@ -1642,7 +1642,8 @@ function gsrDataAction(): void
  */
 function gsrDebugAction(): void
 {
-    $settings = json_decode(file_get_contents(__DIR__ . '/data/gsr_settings.json'), true) ?? [];
+    $sf = __DIR__ . '/data/gsr_settings.json';
+    $settings = file_exists($sf) ? (json_decode(file_get_contents($sf), true) ?? []) : [];
     $raw      = trim($settings['folder_path'] ?? '');
     $base     = rtrim(str_replace('/', '\\', $raw), '\\');
     $win      = gsrWinPath($base);
