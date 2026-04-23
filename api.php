@@ -1646,9 +1646,20 @@ function gsrResolveFilePath(array $settings): array
     // Normalise to backslash, strip trailing separator
     $base = rtrim(str_replace('/', '\\', $raw), '\\');
 
+    // Check base path accessibility first
+    if (!is_dir($base)) {
+        return [null, "базовая папка недоступна: {$base}"];
+    }
+
     $yearPath = $base . '\\' . date('Y');
     if (!is_dir($yearPath)) {
-        return [null, "папка года не найдена: {$yearPath}"];
+        // Maybe the user already included the year in folder_path
+        $entries = @scandir($base) ?: [];
+        $subdirs = array_filter($entries, fn($e) => $e !== '.' && $e !== '..' && is_dir($base . '\\' . $e));
+        $hint = count($subdirs)
+            ? ' (папки внутри: ' . implode(', ', array_slice(array_values($subdirs), 0, 5)) . ')'
+            : ' (папка пустая или нет подпапок)';
+        return [null, "папка года не найдена: {$yearPath}{$hint}"];
     }
 
     $monthPath = gsrFindSubfolder($yearPath, date('m'));
