@@ -1642,23 +1642,61 @@ function gsrDataAction(): void
  */
 function gsrDebugAction(): void
 {
-    $out = '{"step1":"entered"}';
-    echo $out;
+    $info = [];
+    try {
+        $sf = __DIR__ . '/data/gsr_settings.json';
+        $settings = file_exists($sf) ? (json_decode(file_get_contents($sf), true) ?? []) : [];
+        $raw  = trim($settings['folder_path'] ?? '');
+        $base = rtrim(str_replace('/', '\\', $raw), '\\');
+        $win  = gsrWinPath($base);
+
+        $info['php_os']          = PHP_OS;
+        $info['sapi']            = PHP_SAPI;
+        $info['open_basedir']    = ini_get('open_basedir') ?: '(не задан)';
+        $info['iconv_exists']    = function_exists('iconv');
+        $info['mbstring_exists'] = function_exists('mb_convert_encoding');
+        $info['sapi_cp_fn']      = function_exists('sapi_windows_cp_get');
+        $info['ansi_cp']         = function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 'n/a';
+        $info['raw_path']        = $raw;
+        $info['base_utf8']       = $base;
+        $info['base_win']        = $win;
+        $info['base_win_hex']    = bin2hex($win);
+        $info['is_dir_utf8']     = is_dir($base);
+        $info['is_dir_win']      = ($win !== $base) ? is_dir($win) : $info['is_dir_utf8'];
+
+        $scanTarget = $info['is_dir_win'] ? $win : ($info['is_dir_utf8'] ? $base : null);
+        if ($scanTarget !== null) {
+            $entries = @scandir($scanTarget) ?: [];
+            $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
+        }
+    } catch (\Throwable $e) {
+        $info['exception'] = $e->getMessage();
+    }
+    echo json_encode($info, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 
 /**
  * Convert a UTF-8 path to the Windows system codepage so PHP file
  * functions (is_dir / scandir / is_file) can resolve Cyrillic names.
- * Returns the original string unchanged on non-Windows or when iconv
- * is unavailable.
+ * Tries iconv first, then mb_convert_encoding, then returns original.
  */
 function gsrWinPath(string $utf8): string
 {
-    if (PHP_OS_FAMILY !== 'Windows') return $utf8;
+    if (PHP_OS_FAMILY !== 'Windows' || $utf8 === '') return $utf8;
     $cp = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 1251);
-    $converted = @iconv('UTF-8', $cp . '//IGNORE', $utf8);
-    return ($converted !== false && $converted !== '') ? $converted : $utf8;
+
+    if (function_exists('iconv')) {
+        $r = @iconv('UTF-8', $cp . '//IGNORE', $utf8);
+        if ($r !== false && $r !== '') return $r;
+    }
+
+    if (function_exists('mb_convert_encoding')) {
+        $r = @mb_convert_encoding($utf8, $cp, 'UTF-8');
+        if ($r !== false && $r !== '') return $r;
+    }
+
+    return $utf8;
 }
 
 function gsrResolveFilePath(array $settings): array
