@@ -205,6 +205,9 @@ try {
         case 'gsr_settings_get':
             gsrSettingsGetAction();
             break;
+        case 'gsr_debug':
+            gsrDebugAction();
+            break;
         case 'gsr_settings_save':
             requirePost();
             gsrSettingsSaveAction();
@@ -1637,6 +1640,38 @@ function gsrDataAction(): void
  *
  * @return array{0: string|null, 1: string}
  */
+function gsrDebugAction(): void
+{
+    $settings = json_decode(file_get_contents(DATA_DIR . 'gsr_settings.json'), true) ?? [];
+    $raw      = trim($settings['folder_path'] ?? '');
+    $base     = rtrim(str_replace('/', '\\', $raw), '\\');
+    $win      = gsrWinPath($base);
+
+    $info = [
+        'php_os'          => PHP_OS,
+        'php_os_family'   => PHP_OS_FAMILY,
+        'sapi'            => PHP_SAPI,
+        'open_basedir'    => ini_get('open_basedir'),
+        'ansi_cp'         => function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 'n/a',
+        'raw_path'        => $raw,
+        'base_utf8'       => $base,
+        'base_win'        => $win,
+        'is_dir_utf8'     => is_dir($base),
+        'is_dir_win'      => is_dir($win),
+        'scandir_win'     => false,
+        'scandir_entries' => [],
+        'process_user'    => function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid())['name'] ?? '' : 'n/a (windows)',
+    ];
+
+    if ($info['is_dir_win']) {
+        $entries = @scandir($win) ?: [];
+        $info['scandir_win']     = true;
+        $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
+    }
+
+    jsonResponse($info);
+}
+
 /**
  * Convert a UTF-8 path to the Windows system codepage so PHP file
  * functions (is_dir / scandir / is_file) can resolve Cyrillic names.
