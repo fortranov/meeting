@@ -196,6 +196,9 @@ try {
         case 'dashboard_birthdays':
             dashboardBirthdaysAction();
             break;
+        case 'plan_sessions':
+            planSessionsAction();
+            break;
         case 'birthday_settings_get':
             birthdaySettingsGetAction();
             break;
@@ -1633,6 +1636,26 @@ function birthdayDocxUploadAction(): void
 }
 
 // ─── Plan Page System ─────────────────────────────────────────────────────────
+
+function planSessionsAction(): void
+{
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if (!$pageId) { jsonResponse(['sessions' => [], 'session_label' => 'Заседание']); return; }
+
+    $pdo  = db();
+    $page = $pdo->prepare('SELECT session_label FROM plan_page WHERE id = ?');
+    $page->execute([$pageId]);
+    $pageRow      = $page->fetch(PDO::FETCH_ASSOC);
+    $sessionLabel = $pageRow['session_label'] ?? 'Заседание';
+
+    $stmt = $pdo->prepare(
+        'SELECT id, title, session_date FROM plan_session
+          WHERE plan_page_id = ? ORDER BY session_date DESC, id DESC'
+    );
+    $stmt->execute([$pageId]);
+
+    jsonResponse(['sessions' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'session_label' => $sessionLabel]);
+}
 
 function planPagesAction(): void
 {

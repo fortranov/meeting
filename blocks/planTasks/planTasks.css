@@ -1,3 +1,26 @@
+/* "+" button in plan-tasks block header */
+.dash-block-add-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.dash-block-add-btn:hover {
+  background: var(--accent);
+  color: var(--primary);
+}
+
 .dash-session-header {
   padding: 6px 16px 4px;
   font-size: 0.72rem;
