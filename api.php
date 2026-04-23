@@ -1602,11 +1602,19 @@ function gsrDataAction(): void
     }
 
     // Parse the file
-    $filePath = gsrResolveFilePath($settings);
+    [$filePath, $resolvedInfo] = gsrResolveFilePath($settings);
     if (!$filePath) {
-        $result = ['error' => 'Файл не найден по заданному пути',
-                   'responsible' => '', 'rows' => [],
-                   'date' => $today, 'parsed_at' => date('Y-m-d H:i:s')];
+        $base     = rtrim($settings['folder_path'] ?? '', '/\\');
+        $fileName = trim($settings['file_name'] ?? '');
+        $result = [
+            'error'       => sprintf(
+                'Файл не найден. Искали файл начинающийся с «%s» по пути: %s',
+                $fileName,
+                $resolvedInfo ?: $base
+            ),
+            'responsible' => '', 'rows' => [],
+            'date'        => $today, 'parsed_at' => date('Y-m-d H:i:s'),
+        ];
     } else {
         $result = gsrParseFile($filePath, $settings);
         $result['date']      = $today;
@@ -1621,26 +1629,36 @@ function gsrDataAction(): void
     jsonResponse($result);
 }
 
-/** Navigate year/month/day folders and return path to the target file, or null. */
-function gsrResolveFilePath(array $settings): ?string
+/**
+ * Navigate year/month/day folders and return [filePath, lastResolvedPath].
+ * filePath is null if not found; lastResolvedPath shows how far we got.
+ * Day folder matched by prefix only (no underscore required).
+ * File matched by name prefix (starts-with), not exact name.
+ *
+ * @return array{0: string|null, 1: string}
+ */
+function gsrResolveFilePath(array $settings): array
 {
-    $base     = rtrim($settings['folder_path'] ?? '', '/\\');
-    $fileName = trim($settings['file_name'] ?? '');
-    if (!$base || !$fileName) return null;
+    $base        = rtrim($settings['folder_path'] ?? '', '/\\');
+    $filePrefix  = trim($settings['file_name'] ?? '');
+    if (!$base || !$filePrefix) return [null, $base];
 
     $sep = DIRECTORY_SEPARATOR;
 
     $yearPath = $base . $sep . date('Y');
-    if (!is_dir($yearPath)) return null;
+    if (!is_dir($yearPath)) return [null, $yearPath];
 
     $monthPath = gsrFindSubfolder($yearPath, date('m'));
-    if (!$monthPath) return null;
+    if (!$monthPath) return [null, $yearPath . $sep . date('m') . '_…'];
 
     $dayPath = gsrFindSubfolder($monthPath, date('d'));
-    if (!$dayPath) return null;
+    if (!$dayPath) return [null, $monthPath . $sep . date('d') . '…'];
 
-    $filePath = $dayPath . $sep . $fileName;
-    return file_exists($filePath) ? $filePath : null;
+    // Find first file whose name starts with $filePrefix
+    $filePath = gsrFindFile($dayPath, $filePrefix);
+    if (!$filePath) return [null, $dayPath];
+
+    return [$filePath, $dayPath];
 }
 
 /** Return the first subdirectory whose name starts with $prefix, or null. */
@@ -1653,6 +1671,21 @@ function gsrFindSubfolder(string $parent, string $prefix): ?string
         if (str_starts_with($entry, $prefix)
             && is_dir($parent . DIRECTORY_SEPARATOR . $entry)) {
             return $parent . DIRECTORY_SEPARATOR . $entry;
+        }
+    }
+    return null;
+}
+
+/** Return the first file whose name starts with $prefix, or null. */
+function gsrFindFile(string $dir, string $prefix): ?string
+{
+    $entries = @scandir($dir);
+    if (!$entries) return null;
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') continue;
+        if (str_starts_with($entry, $prefix)
+            && is_file($dir . DIRECTORY_SEPARATOR . $entry)) {
+            return $dir . DIRECTORY_SEPARATOR . $entry;
         }
     }
     return null;
