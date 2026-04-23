@@ -206,8 +206,6 @@ try {
             gsrSettingsGetAction();
             break;
         case 'gsr_debug':
-            echo json_encode(['step' => 'switch_reached', 'ts' => time()]);
-            exit;
             gsrDebugAction();
             break;
         case 'gsr_settings_save':
