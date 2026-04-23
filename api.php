@@ -1711,17 +1711,25 @@ function gsrWinPath(string $utf8): string
  */
 function gsrShellList(string $dir, string $type = ''): ?array
 {
-    $win = gsrWinPath($dir);
+    // cmd.exe uses OEM codepage (CP866 on Russian Windows)
+    $oemCp = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('oem') : 866);
+
+    // Convert UTF-8 path → OEM for the shell command
+    $oemPath = function_exists('iconv')
+        ? (@iconv('UTF-8', $oemCp . '//IGNORE', $dir) ?: $dir)
+        : (@mb_convert_encoding($dir, $oemCp, 'UTF-8') ?: $dir);
+
     $attr = $type === 'D' ? '/AD' : ($type === 'F' ? '/A-D' : '');
-    $cmd = 'cmd /c dir /b ' . $attr . ' "' . $win . '" 2>nul';
-    $out = [];
+    $cmd  = 'cmd /c dir /b ' . $attr . ' "' . $oemPath . '" 2>nul';
+    $out  = [];
     exec($cmd, $out, $code);
     if ($code !== 0 && empty($out)) return null;
-    $oem = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('oem') : 866);
+
+    // Convert OEM output → UTF-8
     return array_values(array_map(
         fn($e) => function_exists('iconv')
-            ? (@iconv($oem, 'UTF-8//IGNORE', $e) ?: $e)
-            : (@mb_convert_encoding($e, 'UTF-8', $oem) ?: $e),
+            ? (@iconv($oemCp, 'UTF-8//IGNORE', $e) ?: $e)
+            : (@mb_convert_encoding($e, 'UTF-8', $oemCp) ?: $e),
         array_filter($out, fn($e) => $e !== '')
     ));
 }
