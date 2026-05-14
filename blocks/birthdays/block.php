@@ -1,2 +1,2 @@
 <?php
-return ['id' => 'birthdays', 'name' => 'Дни рождения в отделе', 'sort_order' => 5];
+return ['id' => 'birthdays', 'name' => 'Дни рождения', 'sort_order' => 5];

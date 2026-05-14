@@ -2,22 +2,22 @@ const VISIBLE_DAYS = 35;
 const weekdays  = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu  = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-let visibleStart     = addDays(startOfWeek(new Date()), -7);
-let selectedPersons  = [];
-let personOptions    = [];
-let timelineMeetings = [];
-let taskStatuses = [];
-let holidays = [];
-let taskConflicts = {};
-let conflictTaskId = null;
-let siteSettings = {};
-let _dragTaskId = null;
-let _dragMeetingId = null;
-let _dragParentId = null;
-let collapsedTasks = new Set();
-let meetingDates   = new Set();
+let visibleStart      = addDays(startOfWeek(new Date()), -7);
+let selectedPersons   = [];
+let personOptions     = [];
+let timelineSessions  = [];
+let taskStatuses      = [];
+let holidays          = [];
+let taskConflicts     = {};
+let conflictTaskId    = null;
+let siteSettings      = {};
+let _dragTaskId       = null;
+let _dragSessionId    = null;
+let _dragParentId     = null;
+let collapsedTasks    = new Set();
+let sessionDates      = new Set();
 
-const _dp = { taskId: null, meetingId: null, start: null, picking: null, hoverDate: null, viewYear: null, viewMonth: null };
+const _dp = { taskId: null, sessionId: null, start: null, picking: null, hoverDate: null, viewYear: null, viewMonth: null };
 
 const timelineHeader = document.getElementById('timelineHeader');
 const timelineTable  = document.getElementById('timelineTable');
@@ -29,7 +29,8 @@ async function init() {
   initTooltip();
   bindEvents();
   await loadSiteSettings();
-  await Promise.all([loadStatuses(), loadTimeline(), loadAllPersons(), loadHolidays()]);
+  await loadStatuses();
+  await Promise.all([loadTimeline(), loadAllPersons(), loadHolidays()]);
 }
 
 function initTooltip() {
@@ -92,7 +93,7 @@ function bindEvents() {
   document.getElementById('addMeetingBtn').onclick    = () => openMeetingModal();
   document.getElementById('saveMeeting').onclick      = saveMeeting;
   document.getElementById('saveTask').onclick         = saveTask;
-  document.getElementById('deleteMeetingBtn').onclick = deleteMeeting;
+  document.getElementById('deleteMeetingBtn').onclick = deleteSession;
   document.getElementById('deleteTaskBtn').onclick    = deleteTask;
   document.getElementById('conflictSuppressBtn').onclick = () => {
     if (conflictTaskId !== null) addSuppressed(conflictTaskId);
@@ -137,19 +138,19 @@ async function loadStatuses() {
 
 async function loadTimeline() {
   const start = toISO(visibleStart);
-  const res   = await fetch(`api.php?action=timeline&start=${start}&days=${VISIBLE_DAYS}`);
+  const res   = await fetch(`api.php?action=plan_timeline&page_id=${PAGE_ID}&start=${start}&days=${VISIBLE_DAYS}`);
   const data  = await res.json();
-  timelineMeetings = data.meetings || [];
+  timelineSessions = data.sessions || [];
   renderTimeline();
 }
 
 function renderTimeline() {
   const days = Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(visibleStart, i));
   const rows = [];
-  meetingDates = new Set();
-  timelineMeetings.forEach(m => {
-    meetingDates.add(m.meeting_date);
-    rows.push({ type: 'meeting', id: m.id, meetingId: m.id, title: m.title, start: m.meeting_date, end: m.meeting_date, status: '', level: 0 });
+  sessionDates = new Set();
+  timelineSessions.forEach(m => {
+    sessionDates.add(m.session_date);
+    rows.push({ type: 'meeting', id: m.id, meetingId: m.id, title: m.title, start: m.session_date, end: m.session_date, status: '', level: 0 });
     (m.tasks || []).forEach(t => pushTaskRows(rows, t, m.id, 0));
   });
 
@@ -158,15 +159,15 @@ function renderTimeline() {
   const header = renderMonthRow(days, tpl) + `
     <div class="timeline-row header" style="grid-template-columns:${tpl}">
       <div class="timeline-cell left-col left-0 drag-col"></div>
-      <div class="timeline-cell left-col left-1">Заседание / задача</div>
+      <div class="timeline-cell left-col left-1">${escapeHtml(PAGE_SESSION_LABEL)} / задача</div>
       <div class="timeline-cell left-col left-2">Статус</div>
       <div class="timeline-cell left-col left-3">Сроки</div>
       ${days.map(renderDayHeader).join('')}
     </div>`;
 
-  const meetingsWithAccordions = new Set();
+  const sessionsWithAccordions = new Set();
   rows.forEach(r => {
-    if (r.type === 'task' && r.level === 1 && r.hasChildren) meetingsWithAccordions.add(r.meetingId);
+    if (r.type === 'task' && r.level === 1 && r.hasChildren) sessionsWithAccordions.add(r.meetingId);
   });
 
   const suppressed = getSuppressed();
@@ -188,7 +189,7 @@ function renderTimeline() {
     const accordionBtn = r.type === 'task' && r.level === 1 && r.hasChildren
       ? `<button class="task-collapse-btn" data-task-id="${r.id}" data-meeting-id="${r.meetingId}" title="Свернуть/развернуть подзадачи">▼</button>`
       : '';
-    const meetingBtn = r.type === 'meeting' && meetingsWithAccordions.has(r.meetingId)
+    const meetingBtn = r.type === 'meeting' && sessionsWithAccordions.has(r.meetingId)
       ? `<button class="meeting-collapse-btn" data-meeting-id="${r.meetingId}" title="Свернуть/развернуть все">▼</button>`
       : '';
     const hasAccordion = accordionBtn !== '' || meetingBtn !== '';
@@ -202,7 +203,7 @@ function renderTimeline() {
       </div>
       <div class="timeline-cell left-col left-2">${r.status ? statusPill(r.status) : ''}</div>
       <div class="timeline-cell left-col left-3">${formatPeriod(r.start, r.end)}</div>
-      ${days.map(d => renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null, r.responsible || '')).join('')}
+      ${days.map(d => r.type === 'meeting' ? renderEmptyCell(d) : renderRangeCell(d, r.start, r.end, r.status, r.directionColor || null, r.responsible || '')).join('')}
     </div>`;
   }).join('');
 
@@ -229,9 +230,9 @@ function renderTimeline() {
       if (!cell) return;
       cell.classList.add('date-cell-editable');
       cell.addEventListener('click', () => {
-        const taskId   = Number(row.dataset.taskId);
-        const meetingId = Number(row.dataset.meetingId);
-        const task = findTask(taskId, timelineMeetings);
+        const taskId    = Number(row.dataset.taskId);
+        const sessionId = Number(row.dataset.meetingId);
+        const task = findTask(taskId, timelineSessions);
         if (!task) return;
         openDatePicker(taskId, task.start_date, task.end_date, cell);
       });
@@ -261,12 +262,12 @@ function renderTimeline() {
   });
 }
 
-function pushTaskRows(rows, task, meetingId, level, parentId = null, topLevelTaskId = null) {
+function pushTaskRows(rows, task, sessionId, level, parentId = null, topLevelTaskId = null) {
   const myTopLevelId = level === 0 ? task.id : topLevelTaskId;
   rows.push({
     type: 'task',
     id: task.id,
-    meetingId,
+    meetingId: sessionId,
     parentId,
     topLevelTaskId: myTopLevelId,
     title: task.title,
@@ -279,7 +280,7 @@ function pushTaskRows(rows, task, meetingId, level, parentId = null, topLevelTas
     conflicts: task.conflicts || [],
     responsible: task.responsible || '',
   });
-  (task.children || []).forEach(ch => pushTaskRows(rows, ch, meetingId, level + 1, task.id, myTopLevelId));
+  (task.children || []).forEach(ch => pushTaskRows(rows, ch, sessionId, level + 1, task.id, myTopLevelId));
 }
 
 function applyCollapsedState() {
@@ -304,8 +305,8 @@ function renderActions(row) {
   if (typeof PAGE_CAN_EDIT !== 'undefined' && !PAGE_CAN_EDIT) return '';
   const addBtn = `<button class="btn-icon" title="Добавить задачу" data-action="add-task" data-meeting="${row.meetingId}"${row.type !== 'meeting' ? ` data-parent="${row.id}"` : ''}>${addSvg}</button>`;
   const editBtn = row.type === 'meeting'
-    ? `<button class="btn-icon" title="Редактировать заседание" data-action="edit-meeting" data-id="${row.meetingId}">${editSvg}</button>`
-    : `<button class="btn-icon" title="Редактировать задачу"    data-action="edit-task"    data-id="${row.id}" data-meeting="${row.meetingId}">${editSvg}</button>`;
+    ? `<button class="btn-icon" title="Редактировать" data-action="edit-meeting" data-id="${row.meetingId}">${editSvg}</button>`
+    : `<button class="btn-icon" title="Редактировать задачу" data-action="edit-task" data-id="${row.id}" data-meeting="${row.meetingId}">${editSvg}</button>`;
   return addBtn + editBtn;
 }
 
@@ -317,9 +318,9 @@ function isHoliday(day) {
 function renderDayHeader(day) {
   const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const isoDay     = toISO(day);
-  const meetingDay = meetingDates.has(isoDay) ? 'meeting-day' : '';
+  const sessionDay = sessionDates.has(isoDay) ? 'meeting-day' : '';
   const today      = isoDay === toISO(new Date()) ? 'today' : '';
-  return `<div class="timeline-cell day-header ${weekend} ${meetingDay} ${today}">
+  return `<div class="timeline-cell day-header ${weekend} ${sessionDay} ${today}">
     <span class="weekday">${weekdays[(day.getDay() + 6) % 7]}</span>
     <strong class="date">${day.getDate()}</strong>
   </div>`;
@@ -330,11 +331,19 @@ function isDoneStatus(status) {
   return st && Number(st.is_system) === 1;
 }
 
+function renderEmptyCell(day) {
+  const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
+  const isToday    = toISO(day) === toISO(new Date()) ? 'today' : '';
+  const sessionDay = sessionDates.has(toISO(day)) ? 'meeting-day' : '';
+  return `<div class="timeline-cell day-cell ${isToday} ${weekend} ${sessionDay}"></div>`;
+}
+
 function renderRangeCell(day, start, end, status = '', directionColor = null, responsible = '') {
   const weekend    = day.getDay() === 0 || day.getDay() === 6 || isHoliday(day) ? 'weekend' : '';
   const d          = toISO(day);
   const isToday    = d === toISO(new Date()) ? 'today' : '';
-  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend}"></div>`;
+  const sessionDay = sessionDates.has(d) ? 'meeting-day' : '';
+  if (d < start || d > end || isDoneStatus(status)) return `<div class="timeline-cell day-cell ${isToday} ${weekend} ${sessionDay}"></div>`;
   const cls = start === end ? 'range-single' : d === start ? 'range-start' : d === end ? 'range-end' : 'range-middle';
   let cellStyle = '';
   let fillStyle = '';
@@ -346,7 +355,7 @@ function renderRangeCell(day, start, end, status = '', directionColor = null, re
     fillStyle = ` style="border-color:${directionColor};background:rgba(${r},${g},${b},0.07)"`;
   }
   const tooltipAttr = responsible ? ` data-tooltip="${escapeHtml(responsible)}"` : '';
-  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend}"${cellStyle}${tooltipAttr}><div class="day-fill"${fillStyle}></div></div>`;
+  return `<div class="timeline-cell day-cell in-range ${cls} ${weekend} ${sessionDay}"${cellStyle}${tooltipAttr}><div class="day-fill"${fillStyle}></div></div>`;
 }
 
 function pillStyleFromColor(hex) {
@@ -369,26 +378,29 @@ function statusPill(status) {
 
 function openMeetingModal(id = null) {
   document.getElementById('meetingModal').classList.remove('hidden');
-  document.getElementById('meetingModalTitle').textContent = id ? 'Редактировать заседание' : 'Создать заседание';
-  const delBtn        = document.getElementById('deleteMeetingBtn');
+  document.getElementById('meetingModalTitle').textContent = id
+    ? ('Редактировать ' + PAGE_SESSION_LABEL.toLowerCase())
+    : ('Создать ' + PAGE_SESSION_LABEL.toLowerCase());
+  const delBtn         = document.getElementById('deleteMeetingBtn');
   const useTemplateRow = document.getElementById('useTemplateRow');
+  const topicEl        = document.getElementById('meetingTopic');
   if (!id) {
-    meetingId.value    = '';
-    meetingName.value  = '';
-    meetingDate.value  = toISO(new Date());
-    meetingTopic.value = '';
+    document.getElementById('meetingId').value   = '';
+    document.getElementById('meetingName').value = '';
+    document.getElementById('meetingDate').value = toISO(new Date());
+    if (topicEl) topicEl.value = '';
     document.getElementById('useTemplate').checked = false;
     delBtn.classList.add('hidden');
     useTemplateRow.classList.remove('hidden');
     return;
   }
   useTemplateRow.classList.add('hidden');
-  const m = timelineMeetings.find(x => Number(x.id) === id);
+  const m = timelineSessions.find(x => Number(x.id) === id);
   if (!m) return;
-  meetingId.value    = m.id;
-  meetingName.value  = m.title;
-  meetingDate.value  = m.meeting_date;
-  meetingTopic.value = m.topic;
+  document.getElementById('meetingId').value   = m.id;
+  document.getElementById('meetingName').value = m.title;
+  document.getElementById('meetingDate').value = m.session_date;
+  if (topicEl) topicEl.value = m.topic || '';
   delBtn.classList.remove('hidden');
 }
 
@@ -397,23 +409,23 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
   document.getElementById('taskModalTitle').textContent = taskId ? 'Редактировать задачу' : 'Создать задачу';
   selectedPersons = [];
   renderSelectedPersons();
-  taskIdInput.value    = taskId || '';
-  taskMeetingId.value  = mid;
-  taskParentId.value   = parentTaskId;
-  taskTitle.value      = '';
-  taskStart.value      = toISO(new Date());
-  taskEnd.value        = toISO(new Date());
-  taskStatus.value     = taskStatuses[0]?.name || '';
+  document.getElementById('taskId').value       = taskId || '';
+  document.getElementById('taskMeetingId').value = mid;
+  document.getElementById('taskParentId').value  = parentTaskId;
+  document.getElementById('taskTitle').value     = '';
+  document.getElementById('taskStart').value     = toISO(new Date());
+  document.getElementById('taskEnd').value       = toISO(new Date());
+  document.getElementById('taskStatus').value    = taskStatuses[0]?.name || '';
   const delBtn = document.getElementById('deleteTaskBtn');
   delBtn.classList.toggle('hidden', !taskId);
 
   if (taskId) {
-    const task = findTask(taskId, timelineMeetings);
+    const task = findTask(taskId, timelineSessions);
     if (task) {
-      taskTitle.value  = task.title;
-      taskStart.value  = task.start_date;
-      taskEnd.value    = task.end_date;
-      taskStatus.value = task.status;
+      document.getElementById('taskTitle').value  = task.title;
+      document.getElementById('taskStart').value  = task.start_date;
+      document.getElementById('taskEnd').value    = task.end_date;
+      document.getElementById('taskStatus').value = task.status;
       if (task.person_ids) {
         const ids = task.person_ids.split(',').map(Number).filter(Boolean);
         selectedPersons = ids.map(pid => {
@@ -423,10 +435,10 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
       }
     }
   } else if (parentTaskId) {
-    const parent = findTask(Number(parentTaskId), timelineMeetings);
+    const parent = findTask(Number(parentTaskId), timelineSessions);
     if (parent) {
-      taskStart.value = parent.start_date;
-      taskEnd.value   = parent.end_date;
+      document.getElementById('taskStart').value = parent.start_date;
+      document.getElementById('taskEnd').value   = parent.end_date;
       if (parent.person_ids) {
         const ids = parent.person_ids.split(',').map(Number).filter(Boolean);
         selectedPersons = ids.map(pid => {
@@ -439,9 +451,17 @@ function openTaskModal({ taskId = null, meetingId: mid, parentTaskId = '' }) {
 }
 
 async function saveMeeting() {
-  const useTemplate = !meetingId.value && document.getElementById('useTemplate').checked;
-  const payload = { id: meetingId.value, title: meetingName.value, meeting_date: meetingDate.value, topic: meetingTopic.value, use_template: useTemplate ? 1 : 0 };
-  const res  = await fetch('api.php?action=meeting_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const useTemplate = !document.getElementById('meetingId').value && document.getElementById('useTemplate').checked;
+  const topicEl = document.getElementById('meetingTopic');
+  const payload = {
+    id:           document.getElementById('meetingId').value,
+    title:        document.getElementById('meetingName').value,
+    session_date: document.getElementById('meetingDate').value,
+    topic:        topicEl ? topicEl.value : '',
+    use_template: useTemplate ? 1 : 0,
+    page_id:      PAGE_ID,
+  };
+  const res  = await fetch('api.php?action=plan_session_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('meetingModal');
@@ -450,16 +470,17 @@ async function saveMeeting() {
 
 async function saveTask() {
   const payload = {
-    id:             taskIdInput.value,
-    meeting_id:     Number(taskMeetingId.value),
-    parent_task_id: taskParentId.value || null,
-    title:          taskTitle.value,
-    start_date:     taskStart.value,
-    end_date:       taskEnd.value,
-    status:         taskStatus.value,
+    id:             document.getElementById('taskId').value,
+    session_id:     Number(document.getElementById('taskMeetingId').value),
+    parent_task_id: document.getElementById('taskParentId').value || null,
+    title:          document.getElementById('taskTitle').value,
+    start_date:     document.getElementById('taskStart').value,
+    end_date:       document.getElementById('taskEnd').value,
+    status:         document.getElementById('taskStatus').value,
     person_ids:     selectedPersons.filter(p => p.id > 0).map(p => p.id),
+    page_id:        PAGE_ID,
   };
-  const res  = await fetch('api.php?action=task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res  = await fetch('api.php?action=plan_task_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   const savedId = data.id;
@@ -471,11 +492,11 @@ async function saveTask() {
   }
 }
 
-async function deleteMeeting() {
-  const id = Number(meetingId.value);
+async function deleteSession() {
+  const id = Number(document.getElementById('meetingId').value);
   if (!id) return;
-  if (!confirm('Удалить заседание и все связанные с ним задачи?')) return;
-  const res  = await fetch('api.php?action=meeting_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  if (!confirm('Удалить ' + PAGE_SESSION_LABEL.toLowerCase() + ' и все связанные с ним задачи?')) return;
+  const res  = await fetch('api.php?action=plan_session_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, page_id: PAGE_ID }) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('meetingModal');
@@ -483,10 +504,10 @@ async function deleteMeeting() {
 }
 
 async function deleteTask() {
-  const id = Number(taskIdInput.value);
+  const id = Number(document.getElementById('taskId').value);
   if (!id) return;
   if (!confirm('Удалить задачу и все её подзадачи?')) return;
-  const res  = await fetch('api.php?action=task_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  const res  = await fetch('api.php?action=plan_task_delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
   const data = await res.json();
   if (data.error) return alert(data.error);
   closeModal('taskModal');
@@ -526,8 +547,8 @@ function setupDragDrop() {
     handle.ondragstart = e => {
       const row = handle.closest('[data-task-id]');
       if (!row) return;
-      _dragTaskId   = Number(row.dataset.taskId);
-      _dragMeetingId = Number(row.dataset.meetingId);
+      _dragTaskId    = Number(row.dataset.taskId);
+      _dragSessionId = Number(row.dataset.meetingId);
       _dragParentId  = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(_dragTaskId));
@@ -542,10 +563,10 @@ function setupDragDrop() {
   timelineTable.querySelectorAll('[data-task-id]').forEach(row => {
     row.ondragover = e => {
       if (_dragTaskId === null) return;
-      const targetId     = Number(row.dataset.taskId);
-      const targetParent = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
-      const targetMeeting = Number(row.dataset.meetingId);
-      if (targetMeeting !== _dragMeetingId) return;
+      const targetId      = Number(row.dataset.taskId);
+      const targetParent  = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
+      const targetSession = Number(row.dataset.meetingId);
+      if (targetSession !== _dragSessionId) return;
       if (String(targetParent) !== String(_dragParentId)) return;
       if (targetId === _dragTaskId) return;
       e.preventDefault();
@@ -559,25 +580,25 @@ function setupDragDrop() {
     row.ondrop = async e => {
       e.preventDefault();
       if (_dragTaskId === null) return;
-      const targetId     = Number(row.dataset.taskId);
-      const targetParent = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
-      const targetMeeting = Number(row.dataset.meetingId);
-      if (targetMeeting !== _dragMeetingId) return;
+      const targetId      = Number(row.dataset.taskId);
+      const targetParent  = row.dataset.parentId !== '' ? Number(row.dataset.parentId) : null;
+      const targetSession = Number(row.dataset.meetingId);
+      if (targetSession !== _dragSessionId) return;
       if (String(targetParent) !== String(_dragParentId)) return;
       if (targetId === _dragTaskId) return;
       row.classList.remove('drag-over');
-      const meeting = timelineMeetings.find(m => Number(m.id) === _dragMeetingId);
-      if (!meeting) return;
+      const session = timelineSessions.find(s => Number(s.id) === _dragSessionId);
+      if (!session) return;
       const siblings = _dragParentId !== null
-        ? (findTask(_dragParentId, [meeting])?.children || [])
-        : (meeting.tasks || []);
+        ? (findTask(_dragParentId, [session])?.children || [])
+        : (session.tasks || []);
       const fromIdx = siblings.findIndex(t => Number(t.id) === _dragTaskId);
       const toIdx   = siblings.findIndex(t => Number(t.id) === targetId);
       if (fromIdx === -1 || toIdx === -1) return;
       const [moved] = siblings.splice(fromIdx, 1);
       siblings.splice(toIdx, 0, moved);
       renderTimeline();
-      await fetch('api.php?action=task_reorder', {
+      await fetch('api.php?action=plan_task_reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: siblings.map(t => Number(t.id)) }),
@@ -627,7 +648,7 @@ function renderDatePickerFull() {
   const year = _dp.viewYear, month = _dp.viewMonth;
   const firstDay = new Date(year, month, 1);
   const lastDay  = new Date(year, month + 1, 0);
-  const startWd  = (firstDay.getDay() + 6) % 7; // Mon=0
+  const startWd  = (firstDay.getDay() + 6) % 7;
   const today    = toISO(new Date());
 
   const hdrs = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']
@@ -730,7 +751,7 @@ function positionDatePicker(anchorEl) {
 }
 
 async function saveDateRange(taskId, startDate, endDate) {
-  const res  = await fetch('api.php?action=task_dates', {
+  const res  = await fetch('api.php?action=plan_task_dates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: taskId, start_date: startDate, end_date: endDate }),
@@ -755,7 +776,7 @@ function toISO(date) { if (typeof date === 'string') return date; return `${date
 function fmtDM(iso) { const d = new Date(iso + 'T00:00:00'); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`; }
 function formatPeriod(s, e) { return s === e ? fmtDM(s) : `${fmtDM(s)} – ${fmtDM(e)}`; }
 function escapeHtml(s = '') { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function findTask(id, meetings) {
+function findTask(id, sessions) {
   function walk(tasks) {
     for (const t of tasks) {
       if (Number(t.id) === Number(id)) return t;
@@ -764,7 +785,7 @@ function findTask(id, meetings) {
     }
     return null;
   }
-  for (const m of meetings) { const f = walk(m.tasks || []); if (f) return f; }
+  for (const s of sessions) { const f = walk(s.tasks || []); if (f) return f; }
   return null;
 }
 
@@ -795,17 +816,5 @@ function openConflictModal(taskId) {
   ).join('');
   document.getElementById('conflictModal').classList.remove('hidden');
 }
-
-const meetingId    = document.getElementById('meetingId');
-const meetingName  = document.getElementById('meetingName');
-const meetingDate  = document.getElementById('meetingDate');
-const meetingTopic = document.getElementById('meetingTopic');
-const taskIdInput  = document.getElementById('taskId');
-const taskMeetingId = document.getElementById('taskMeetingId');
-const taskParentId  = document.getElementById('taskParentId');
-const taskTitle    = document.getElementById('taskTitle');
-const taskStart    = document.getElementById('taskStart');
-const taskEnd      = document.getElementById('taskEnd');
-const taskStatus   = document.getElementById('taskStatus');
 
 init();

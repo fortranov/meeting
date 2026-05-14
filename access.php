@@ -53,6 +53,46 @@ function checkPageAccess(string $page): array
     ];
 }
 
+function checkPlanPageAccess(int $pageId): array
+{
+    if (!isIpAccessEnabled()) {
+        return ['can_view' => true, 'can_edit' => true];
+    }
+
+    $ip = getClientIp();
+
+    try {
+        $stmt = db()->prepare("SELECT id FROM person WHERE ip = :ip AND ip != '' LIMIT 1");
+        $stmt->execute([':ip' => $ip]);
+        $person = $stmt->fetch();
+    } catch (\Throwable) {
+        return ['can_view' => false, 'can_edit' => false];
+    }
+
+    if ($person === false) {
+        return ['can_view' => false, 'can_edit' => false];
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT can_view, can_edit FROM person_plan_access WHERE person_id=:pid AND plan_page_id=:ppid LIMIT 1'
+        );
+        $stmt->execute([':pid' => (int)$person['id'], ':ppid' => $pageId]);
+        $row = $stmt->fetch();
+    } catch (\Throwable) {
+        return ['can_view' => false, 'can_edit' => false];
+    }
+
+    if ($row === false) {
+        return ['can_view' => false, 'can_edit' => false];
+    }
+
+    return [
+        'can_view' => (int)$row['can_view'] === 1,
+        'can_edit' => (int)$row['can_edit'] === 1,
+    ];
+}
+
 function accessDeniedPage(): never
 {
     http_response_code(403);

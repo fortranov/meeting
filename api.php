@@ -196,6 +196,96 @@ try {
         case 'dashboard_birthdays':
             dashboardBirthdaysAction();
             break;
+        case 'plan_sessions':
+            planSessionsAction();
+            break;
+        case 'gsr_data':
+            gsrDataAction();
+            break;
+        case 'gsr_settings_get':
+            gsrSettingsGetAction();
+            break;
+        case 'gsr_debug':
+            gsrDebugAction();
+            break;
+        case 'gsr_settings_save':
+            requirePost();
+            gsrSettingsSaveAction();
+            break;
+        case 'birthday_settings_get':
+            birthdaySettingsGetAction();
+            break;
+        case 'birthday_settings_save':
+            requirePost();
+            birthdaySettingsSaveAction();
+            break;
+        case 'birthday_docx_upload':
+            requirePost();
+            birthdayDocxUploadAction();
+            break;
+        case 'plan_pages':
+            planPagesAction();
+            break;
+        case 'plan_page_save':
+            requirePost();
+            planPageSaveAction();
+            break;
+        case 'plan_page_delete':
+            requirePost();
+            planPageDeleteAction();
+            break;
+        case 'plan_page_reorder':
+            requirePost();
+            planPageReorderAction();
+            break;
+        case 'plan_timeline':
+            planTimelineAction();
+            break;
+        case 'plan_session_save':
+            requirePost();
+            planSessionSaveAction();
+            break;
+        case 'plan_session_delete':
+            requirePost();
+            planSessionDeleteAction();
+            break;
+        case 'plan_task_save':
+            requirePost();
+            planTaskSaveAction();
+            break;
+        case 'plan_task_delete':
+            requirePost();
+            planTaskDeleteAction();
+            break;
+        case 'plan_task_dates':
+            requirePost();
+            planTaskDatesAction();
+            break;
+        case 'plan_task_reorder':
+            requirePost();
+            planTaskReorderAction();
+            break;
+        case 'plan_template_tasks':
+            planTemplateTasksAction();
+            break;
+        case 'plan_template_task_save':
+            requirePost();
+            planTemplateTaskSaveAction();
+            break;
+        case 'plan_template_task_delete':
+            requirePost();
+            planTemplateTaskDeleteAction();
+            break;
+        case 'plan_template_task_reorder':
+            requirePost();
+            planTemplateTaskReorderAction();
+            break;
+        case 'dashboard_plan_tasks':
+            dashboardPlanTasksAction();
+            break;
+        case 'plan_page_person_access':
+            planPagePersonAccessAction();
+            break;
         default:
             jsonResponse(['error' => 'Unknown action'], 400);
     }
@@ -588,6 +678,25 @@ function personSaveAction(): void
             ':pvv' => $pvv, ':pve' => $pve, ':pcv' => $pcv, ':pce' => $pce]);
         $id = (int)$pdo->lastInsertId();
     }
+
+    // Handle plan page accesses if provided
+    $planPageAccesses = $payload['plan_page_accesses'] ?? null;
+    if (is_array($planPageAccesses)) {
+        $stmtAcc = $pdo->prepare(
+            'INSERT OR REPLACE INTO person_plan_access (person_id, plan_page_id, can_view, can_edit) VALUES (:pid, :ppid, :cv, :ce)'
+        );
+        foreach ($planPageAccesses as $access) {
+            $ppid = isset($access['plan_page_id']) ? (int)$access['plan_page_id'] : 0;
+            if ($ppid <= 0) continue;
+            $stmtAcc->execute([
+                ':pid'  => $id,
+                ':ppid' => $ppid,
+                ':cv'   => (int)!empty($access['can_view']),
+                ':ce'   => (int)!empty($access['can_edit']),
+            ]);
+        }
+    }
+
     jsonResponse(['ok' => true, 'id' => $id]);
 }
 
@@ -1205,7 +1314,7 @@ function dashboardTodayAction(): void
     $pdo   = db();
     $today = date('Y-m-d');
 
-    $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person')->fetch()['c'];
+    $total = (int)$pdo->query('SELECT COUNT(*) AS c FROM person WHERE is_management = 0 OR is_management IS NULL')->fetch()['c'];
 
     $fetchType = static function (string $type) use ($pdo, $today): array {
         $stmt = $pdo->prepare(
@@ -1242,12 +1351,15 @@ function dashboardTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date,
+        "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+                ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM task t
+         LEFT JOIN task_status ts ON ts.name = t.status
          LEFT JOIN task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          WHERE t.start_date <= :today AND t.end_date >= :today
+           AND t.status != 'Выполнено'
          GROUP BY t.id
          ORDER BY t.end_date, t.start_date, t.id"
     );
@@ -1263,12 +1375,15 @@ function dashboardControlTasksAction(): void
     $today = date('Y-m-d');
 
     $stmt = $pdo->prepare(
-        "SELECT t.id, t.title, t.start_date, t.end_date,
+        "SELECT t.id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+                ts.color,
                 GROUP_CONCAT(p.last_name, ', ') AS responsible
          FROM control_task t
+         LEFT JOIN task_status ts ON ts.name = t.status
          LEFT JOIN control_task_person tp ON tp.task_id = t.id
          LEFT JOIN person p ON p.id = tp.person_id
          WHERE t.start_date <= :today AND t.end_date >= :today
+           AND t.status != 'Выполнено'
          GROUP BY t.id
          ORDER BY t.end_date, t.start_date, t.id"
     );
@@ -1320,69 +1435,89 @@ function dashboardBlocksAction(): void
     $blocks = [];
     foreach (glob(__DIR__ . '/blocks/*/block.php') as $f) {
         $meta = require $f;
+        // block.php may return a single meta array or an empty array (skip)
         if (is_array($meta) && isset($meta['id'], $meta['name'])) {
             $blocks[] = ['id' => $meta['id'], 'name' => $meta['name'], 'sort_order' => $meta['sort_order'] ?? 0];
         }
     }
+    // Add plan task blocks dynamically from plan_page table
+    try {
+        $planPages = db()->query('SELECT id, dash_title, sort_order FROM plan_page ORDER BY sort_order, id')->fetchAll();
+        foreach ($planPages as $p) {
+            $blocks[] = ['id' => 'planTasks_' . (int)$p['id'], 'name' => $p['dash_title'], 'sort_order' => (int)$p['sort_order']];
+        }
+    } catch (\Throwable) {}
     usort($blocks, fn($a, $b) => $a['sort_order'] <=> $b['sort_order']);
     jsonResponse(['blocks' => $blocks]);
 }
 
 function dashboardBirthdaysAction(): void
 {
-    $pdo     = db();
-    $today   = new DateTime('today');
+    $today    = new DateTime('today');
     $thisYear = (int)$today->format('Y');
 
-    $persons = $pdo->query(
-        "SELECT full_name, first_name, last_name, birth_date FROM person
-         WHERE birth_date IS NOT NULL AND birth_date != ''
-         ORDER BY first_name, last_name"
-    )->fetchAll(PDO::FETCH_ASSOC);
+    // Load days_back / days_forward from settings file
+    $settingsFile = __DIR__ . '/data/birthday_settings.json';
+    $daysBack = 2;
+    $daysFwd  = 30;
+    if (file_exists($settingsFile)) {
+        $s = json_decode(file_get_contents($settingsFile), true);
+        if (is_array($s)) {
+            $daysBack = (int)($s['days_back']    ?? 2);
+            $daysFwd  = (int)($s['days_forward'] ?? 30);
+        }
+    }
+
+    // Load birthdays from file
+    $bdFile = __DIR__ . '/data/birthdays.json';
+    if (!file_exists($bdFile)) {
+        jsonResponse(['today' => [], 'past' => [], 'upcoming' => []]);
+        return;
+    }
+    $bdData  = json_decode(file_get_contents($bdFile), true);
+    $persons = $bdData['birthdays'] ?? [];
 
     $todayList    = [];
     $pastList     = [];
     $upcomingList = [];
 
     foreach ($persons as $p) {
-        try {
-            $bd = new DateTime($p['birth_date']);
-        } catch (\Exception $e) {
-            continue;
-        }
+        $dateStr = $p['full_date'] ?? $p['date'];
+        $parts   = explode('.', $dateStr);
+        if (count($parts) < 2) continue;
 
-        $md   = $bd->format('m-d');
-        $name = trim($p['first_name'] . ' ' . $p['last_name']) ?: trim($p['full_name']);
-        $date = $bd->format('d.m');
+        $day   = $parts[0];
+        $month = $parts[1];
+        $md    = $month . '-' . $day;
+        $name  = $p['name'];
+        $date  = $day . '.' . $month;
 
-        // Try this year's birthday; handle Feb 29 on non-leap years
         try {
             $bday = new DateTime($thisYear . '-' . $md);
-        } catch (\Exception $e) {
-            // Feb 29 → use Mar 1 in non-leap years
+        } catch (\Exception) {
             $bday = new DateTime($thisYear . '-03-01');
         }
 
-        $diff  = $today->diff($bday);
-        $days  = (int)$diff->days;
+        $diff   = $today->diff($bday);
+        $days   = (int)$diff->days;
         $isPast = (bool)$diff->invert;
 
         if ($days === 0) {
             $todayList[] = ['name' => $name, 'date' => $date];
-        } elseif ($isPast && $days <= 2) {
+        } elseif ($isPast && $days <= $daysBack) {
             $pastList[] = ['name' => $name, 'date' => $date, 'days_ago' => $days];
-        } elseif (!$isPast && $days <= 30) {
+        } elseif (!$isPast && $days <= $daysFwd) {
             $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $days];
         } elseif ($isPast) {
-            // Check if next year's birthday falls within upcoming 30 days (year-wrap)
+            // Check year-wrap: next year's birthday within upcoming window
             try {
                 $bdayNext = new DateTime(($thisYear + 1) . '-' . $md);
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 $bdayNext = new DateTime(($thisYear + 1) . '-03-01');
             }
             $diffNext = $today->diff($bdayNext);
             $daysNext = (int)$diffNext->days;
-            if ($daysNext >= 1 && $daysNext <= 30) {
+            if ($daysNext >= 1 && $daysNext <= $daysFwd) {
                 $upcomingList[] = ['name' => $name, 'date' => $date, 'days_till' => $daysNext];
             }
         }
@@ -1391,4 +1526,977 @@ function dashboardBirthdaysAction(): void
     usort($upcomingList, fn($a, $b) => $a['days_till'] <=> $b['days_till']);
 
     jsonResponse(['today' => $todayList, 'past' => $pastList, 'upcoming' => $upcomingList]);
+}
+
+// ─── ГСР block ────────────────────────────────────────────────────────────────
+
+function gsrSettingsGetAction(): void
+{
+    $settingsFile = __DIR__ . '/data/gsr_settings.json';
+    $settings = file_exists($settingsFile)
+        ? (json_decode(file_get_contents($settingsFile), true) ?? [])
+        : [];
+
+    $cacheFile = __DIR__ . '/data/gsr_cache.json';
+    if (file_exists($cacheFile)) {
+        $c = json_decode(file_get_contents($cacheFile), true) ?? [];
+        $settings['cache_date']      = $c['date']      ?? null;
+        $settings['cache_parsed_at'] = $c['parsed_at'] ?? null;
+        $settings['cache_error']     = $c['error']     ?? null;
+    }
+    jsonResponse($settings);
+}
+
+function gsrSettingsSaveAction(): void
+{
+    $body = getJsonPayload();
+    $keys = ['folder_path','file_name','text_before_responsible',
+             'text_col1','text_row1','text_row2','text_row3','text_row4'];
+    $data = [];
+    foreach ($keys as $k) {
+        $data[$k] = trim((string)($body[$k] ?? ''));
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    file_put_contents($dir . '/gsr_settings.json',
+        json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    // Clear cache so next request re-parses with new settings
+    @unlink($dir . '/gsr_cache.json');
+
+    jsonResponse(['ok' => true]);
+}
+
+function gsrDataAction(): void
+{
+    $settingsFile = __DIR__ . '/data/gsr_settings.json';
+    if (!file_exists($settingsFile)) {
+        jsonResponse(['error' => 'Настройки блока ГСР не заданы', 'responsible' => '', 'rows' => []]);
+        return;
+    }
+    $settings = json_decode(file_get_contents($settingsFile), true) ?? [];
+
+    $today  = date('Y-m-d');
+    $now    = time();
+    $sixAm  = mktime(6, 0, 0);   // 06:00 today
+
+    // Before 6:00 — return cache from today if it exists, otherwise signal early
+    $cacheFile = __DIR__ . '/data/gsr_cache.json';
+    $cache     = [];
+    if (file_exists($cacheFile)) {
+        $cache = json_decode(file_get_contents($cacheFile), true) ?? [];
+    }
+
+    $cacheIsToday = ($cache['date'] ?? '') === $today;
+    $cacheAfter6  = $cacheIsToday && !empty($cache['parsed_at'])
+                    && strtotime($cache['parsed_at']) >= $sixAm;
+
+    // Valid cache: parsed today after 6:00
+    if ($cacheAfter6) {
+        jsonResponse($cache);
+        return;
+    }
+
+    // Too early — nothing cached for today yet
+    if ($now < $sixAm) {
+        jsonResponse(['status' => 'before_6am', 'responsible' => '', 'rows' => []]);
+        return;
+    }
+
+    // Parse the file
+    [$filePath, $resolvedInfo] = gsrResolveFilePath($settings);
+    if (!$filePath) {
+        $base     = rtrim($settings['folder_path'] ?? '', '/\\');
+        $fileName = trim($settings['file_name'] ?? '');
+        $result = [
+            'error'       => sprintf(
+                'Файл не найден. Искали файл начинающийся с «%s» по пути: %s',
+                $fileName,
+                $resolvedInfo ?: $base
+            ),
+            'responsible' => '', 'rows' => [],
+            'date'        => $today, 'parsed_at' => date('Y-m-d H:i:s'),
+        ];
+    } else {
+        $result = gsrParseFile($filePath, $settings);
+        $result['date']      = $today;
+        $result['parsed_at'] = date('Y-m-d H:i:s');
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    file_put_contents($cacheFile,
+        json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+    jsonResponse($result);
+}
+
+/**
+ * Navigate year/month/day folders and return [filePath, lastResolvedPath].
+ * filePath is null if not found; lastResolvedPath shows how far we got.
+ * Day folder matched by prefix only (no underscore required).
+ * File matched by name prefix (starts-with), not exact name.
+ *
+ * @return array{0: string|null, 1: string}
+ */
+function gsrDebugAction(): void
+{
+    $info = [];
+    try {
+        $sf = __DIR__ . '/data/gsr_settings.json';
+        $settings = file_exists($sf) ? (json_decode(file_get_contents($sf), true) ?? []) : [];
+        $raw  = trim($settings['folder_path'] ?? '');
+        $base = rtrim(str_replace('/', '\\', $raw), '\\');
+        $win  = gsrWinPath($base);
+
+        $info['php_os']          = PHP_OS;
+        $info['sapi']            = PHP_SAPI;
+        $info['open_basedir']    = ini_get('open_basedir') ?: '(не задан)';
+        $info['iconv_exists']    = function_exists('iconv');
+        $info['mbstring_exists'] = function_exists('mb_convert_encoding');
+        $info['sapi_cp_fn']      = function_exists('sapi_windows_cp_get');
+        $info['ansi_cp']         = function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 'n/a';
+        $info['raw_path']        = $raw;
+        $info['base_utf8']       = $base;
+        $info['base_win_hex']    = bin2hex($win);
+        $info['base_win_utf8']   = @mb_convert_encoding($win, 'UTF-8', 'CP1251') ?: '(не удалось декодировать)';
+        $info['is_dir_utf8']     = is_dir($base);
+        $info['is_dir_win']      = ($win !== $base) ? is_dir($win) : $info['is_dir_utf8'];
+
+        $scanTarget = $info['is_dir_win'] ? $win : ($info['is_dir_utf8'] ? $base : null);
+        if ($scanTarget !== null) {
+            $entries = @scandir($scanTarget) ?: [];
+            $info['scandir_entries'] = array_values(array_filter($entries, fn($e) => $e !== '.' && $e !== '..'));
+        }
+
+        // Shell-level checks via gsrShellList
+        $info['shell_list_base'] = gsrShellList($base, 'D');
+        $info['shell_list_ok']   = $info['shell_list_base'] !== null;
+    } catch (\Throwable $e) {
+        $info['exception'] = $e->getMessage();
+    }
+    echo json_encode($info, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
+/**
+ * Convert a UTF-8 path to the Windows system codepage so PHP file
+ * functions (is_dir / scandir / is_file) can resolve Cyrillic names.
+ * Tries iconv first, then mb_convert_encoding, then returns original.
+ */
+function gsrWinPath(string $utf8): string
+{
+    if (PHP_OS_FAMILY !== 'Windows' || $utf8 === '') return $utf8;
+    $cp = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('ansi') : 1251);
+
+    if (function_exists('iconv')) {
+        $r = @iconv('UTF-8', $cp . '//IGNORE', $utf8);
+        if ($r !== false && $r !== '') return $r;
+    }
+
+    if (function_exists('mb_convert_encoding')) {
+        $r = @mb_convert_encoding($utf8, $cp, 'UTF-8');
+        if ($r !== false && $r !== '') return $r;
+    }
+
+    return $utf8;
+}
+
+/**
+ * List entries in a directory using `cmd /c dir` so it works with
+ * UNC paths and Cyrillic names that confuse PHP's native file functions.
+ * Returns array of entry names (UTF-8), or null on failure.
+ * $type: 'D' = dirs only, 'F' = files only, '' = both.
+ */
+function gsrShellList(string $dir, string $type = ''): ?array
+{
+    // cmd.exe uses OEM codepage (CP866 on Russian Windows)
+    $oemCp = 'CP' . (function_exists('sapi_windows_cp_get') ? sapi_windows_cp_get('oem') : 866);
+
+    // Convert UTF-8 path → OEM for the shell command
+    $oemPath = function_exists('iconv')
+        ? (@iconv('UTF-8', $oemCp . '//IGNORE', $dir) ?: $dir)
+        : (@mb_convert_encoding($dir, $oemCp, 'UTF-8') ?: $dir);
+
+    $attr = $type === 'D' ? '/AD' : ($type === 'F' ? '/A-D' : '');
+    $cmd  = 'cmd /c dir /b ' . $attr . ' "' . $oemPath . '" 2>nul';
+    $out  = [];
+    exec($cmd, $out, $code);
+    if ($code !== 0 && empty($out)) return null;
+
+    // Convert OEM output → UTF-8
+    return array_values(array_map(
+        fn($e) => function_exists('iconv')
+            ? (@iconv($oemCp, 'UTF-8//IGNORE', $e) ?: $e)
+            : (@mb_convert_encoding($e, 'UTF-8', $oemCp) ?: $e),
+        array_filter($out, fn($e) => $e !== '')
+    ));
+}
+
+function gsrResolveFilePath(array $settings): array
+{
+    $raw        = trim($settings['folder_path'] ?? '');
+    $filePrefix = trim($settings['file_name'] ?? '');
+    if (!$raw || !$filePrefix) return [null, '(настройки не заданы)'];
+
+    $base = rtrim(str_replace('/', '\\', $raw), '\\');
+
+    // Check base path accessibility
+    $baseEntries = gsrShellList($base, 'D');
+    if ($baseEntries === null) {
+        return [null, "базовая папка недоступна: {$base}"];
+    }
+
+    $year = date('Y');
+    if (!in_array($year, $baseEntries)) {
+        $hint = count($baseEntries) ? ' (папки внутри: ' . implode(', ', array_slice($baseEntries, 0, 5)) . ')' : ' (папка пустая)';
+        return [null, "папка года не найдена: {$base}\\{$year}{$hint}"];
+    }
+    $yearPath = $base . '\\' . $year;
+
+    $monthPath = gsrFindSubfolder($yearPath, date('m'));
+    if (!$monthPath) {
+        return [null, "папка месяца не найдена в: {$yearPath} (искали начало «" . date('m') . "»)"];
+    }
+
+    $dayPath = gsrFindSubfolder($monthPath, date('d'));
+    if (!$dayPath) {
+        return [null, "папка дня не найдена в: {$monthPath} (искали начало «" . date('d') . "»)"];
+    }
+
+    $filePath = gsrFindFile($dayPath, $filePrefix);
+    if (!$filePath) {
+        return [null, "файл не найден в: {$dayPath} (искали начало «{$filePrefix}»)"];
+    }
+
+    return [$filePath, $dayPath];
+}
+
+/** Return the first subdirectory whose name starts with $prefix, or null. */
+function gsrFindSubfolder(string $parent, string $prefix): ?string
+{
+    $entries = gsrShellList($parent, 'D');
+    if ($entries === null) return null;
+    foreach ($entries as $entry) {
+        if (str_starts_with($entry, $prefix)) {
+            return $parent . '\\' . $entry;
+        }
+    }
+    return null;
+}
+
+/** Return the first file whose name starts with $prefix, or null. */
+function gsrFindFile(string $dir, string $prefix): ?string
+{
+    $entries = gsrShellList($dir, 'F');
+    if ($entries === null) return null;
+    foreach ($entries as $entry) {
+        if (str_starts_with($entry, $prefix)) {
+            return $dir . '\\' . $entry;
+        }
+    }
+    return null;
+}
+
+/** Open a .docx and extract ГСР data according to settings. */
+function gsrParseFile(string $filePath, array $settings): array
+{
+    $result = ['responsible' => '', 'rows' => ['', '', '', '']];
+
+    $zip = new ZipArchive();
+    if ($zip->open(gsrWinPath($filePath)) !== true) {
+        $result['error'] = 'Не удалось открыть файл';
+        return $result;
+    }
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+    if ($xml === false) {
+        $result['error'] = 'Файл не является корректным .docx';
+        return $result;
+    }
+
+    $dom = new DOMDocument();
+    if (!@$dom->loadXML($xml)) {
+        $result['error'] = 'Ошибка разбора XML документа';
+        return $result;
+    }
+
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('w',
+        'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+    // 1. Find responsible: paragraph containing the marker, take text after it
+    $markerResp = $settings['text_before_responsible'] ?? '';
+    if ($markerResp !== '') {
+        foreach ($xpath->query('//w:p') as $para) {
+            $text = gsrParaText($xpath, $para);
+            $pos  = mb_strpos($text, $markerResp);
+            if ($pos !== false) {
+                $result['responsible'] = trim(
+                    mb_substr($text, $pos + mb_strlen($markerResp))
+                );
+                break;
+            }
+        }
+    }
+
+    // 2. Scan tables for a row whose first cell contains text_col1,
+    //    then extract 3 words after each row-label from the second cell.
+    $col1Marker = $settings['text_col1'] ?? '';
+    $rowMarkers = [
+        $settings['text_row1'] ?? '',
+        $settings['text_row2'] ?? '',
+        $settings['text_row3'] ?? '',
+        $settings['text_row4'] ?? '',
+    ];
+
+    $found = false;
+    foreach ($xpath->query('//w:tbl') as $table) {
+        if ($found) break;
+        foreach ($xpath->query('w:tr', $table) as $row) {
+            $cells = $xpath->query('w:tc', $row);
+            if ($cells->length < 2) continue;
+
+            $cell1 = gsrCellText($xpath, $cells->item(0));
+            if ($col1Marker !== '' && mb_strpos($cell1, $col1Marker) === false) continue;
+
+            $cell2 = gsrCellText($xpath, $cells->item(1));
+            foreach ($rowMarkers as $i => $marker) {
+                if ($marker === '') continue;
+                $result['rows'][$i] = gsrExtractWordsAfter($cell2, $marker, 3);
+            }
+            $found = true;
+            break;
+        }
+    }
+
+    return $result;
+}
+
+/** All text in a paragraph (runs concatenated). */
+function gsrParaText(DOMXPath $xpath, DOMNode $para): string
+{
+    $text = '';
+    foreach ($xpath->query('.//w:t', $para) as $t) {
+        $text .= $t->nodeValue;
+    }
+    return $text;
+}
+
+/** All text in a table cell, paragraphs separated by a space. */
+function gsrCellText(DOMXPath $xpath, DOMNode $cell): string
+{
+    $parts = [];
+    foreach ($xpath->query('.//w:p', $cell) as $para) {
+        $text = '';
+        foreach ($xpath->query('.//w:t', $para) as $t) {
+            $text .= $t->nodeValue;
+        }
+        if ($text !== '') $parts[] = $text;
+    }
+    return implode(' ', $parts);
+}
+
+/** Return the first $count words found in $text after $marker (whitespace-normalised). */
+function gsrExtractWordsAfter(string $text, string $marker, int $count): string
+{
+    $pos = mb_strpos($text, $marker);
+    if ($pos === false) return '';
+    $after = mb_substr($text, $pos + mb_strlen($marker));
+    $words = array_values(array_filter(preg_split('/\s+/u', $after)));
+    return implode(' ', array_slice($words, 0, $count));
+}
+
+function birthdaySettingsGetAction(): void
+{
+    $settingsFile = __DIR__ . '/data/birthday_settings.json';
+    $settings = ['days_back' => 2, 'days_forward' => 30];
+    if (file_exists($settingsFile)) {
+        $s = json_decode(file_get_contents($settingsFile), true);
+        if (is_array($s)) $settings = array_merge($settings, $s);
+    }
+
+    $count  = 0;
+    $bdFile = __DIR__ . '/data/birthdays.json';
+    if (file_exists($bdFile)) {
+        $d = json_decode(file_get_contents($bdFile), true);
+        $count = count($d['birthdays'] ?? []);
+    }
+
+    $settings['count'] = $count;
+    jsonResponse($settings);
+}
+
+function birthdaySettingsSaveAction(): void
+{
+    $body     = getJsonPayload();
+    $daysBack = max(0, (int)($body['days_back']    ?? 2));
+    $daysFwd  = max(0, (int)($body['days_forward'] ?? 30));
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    file_put_contents(
+        $dir . '/birthday_settings.json',
+        json_encode(['days_back' => $daysBack, 'days_forward' => $daysFwd], JSON_PRETTY_PRINT)
+    );
+    jsonResponse(['ok' => true]);
+}
+
+function birthdayDocxUploadAction(): void
+{
+    if (empty($_FILES['file']['tmp_name'])) {
+        jsonResponse(['error' => 'Файл не загружен'], 400);
+        return;
+    }
+
+    $tmpFile = $_FILES['file']['tmp_name'];
+    $zip = new ZipArchive();
+    if ($zip->open($tmpFile) !== true) {
+        jsonResponse(['error' => 'Не удалось открыть файл — убедитесь, что это корректный .docx'], 400);
+        return;
+    }
+
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+
+    if ($xml === false) {
+        jsonResponse(['error' => 'Файл не содержит document.xml — неверный формат'], 400);
+        return;
+    }
+
+    $dom = new DOMDocument();
+    if (!@$dom->loadXML($xml)) {
+        jsonResponse(['error' => 'Не удалось разобрать XML документа'], 400);
+        return;
+    }
+
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+    $birthdays = [];
+
+    foreach ($xpath->query('//w:tbl') as $table) {
+        foreach ($xpath->query('w:tr', $table) as $row) {
+            $cells = $xpath->query('w:tc', $row);
+            if ($cells->length < 2) continue;
+
+            // Extract text from first cell
+            $firstCell = '';
+            foreach ($xpath->query('.//w:t', $cells->item(0)) as $t) {
+                $firstCell .= $t->nodeValue;
+            }
+            $firstCell = trim($firstCell);
+
+            // Must match dd.mm.YYYY
+            if (!preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $firstCell)) continue;
+
+            // Extract name from second cell
+            $nameRaw = '';
+            foreach ($xpath->query('.//w:t', $cells->item(1)) as $t) {
+                $nameRaw .= $t->nodeValue;
+            }
+            $nameRaw = trim($nameRaw);
+            if ($nameRaw === '') continue;
+
+            // Normalize: each word — lowercase, first letter uppercase
+            $words = preg_split('/\s+/', $nameRaw);
+            $normalized = array_map(function (string $w): string {
+                if ($w === '') return '';
+                return mb_strtoupper(mb_substr($w, 0, 1, 'UTF-8'), 'UTF-8')
+                     . mb_strtolower(mb_substr($w, 1, null, 'UTF-8'), 'UTF-8');
+            }, $words);
+            $name = implode(' ', array_filter($normalized));
+
+            $birthdays[] = [
+                'name'      => $name,
+                'date'      => substr($firstCell, 0, 5), // dd.mm
+                'full_date' => $firstCell,               // dd.mm.YYYY
+            ];
+        }
+    }
+
+    $dir = __DIR__ . '/data';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    file_put_contents(
+        $dir . '/birthdays.json',
+        json_encode(['birthdays' => $birthdays], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+    );
+
+    jsonResponse(['ok' => true, 'count' => count($birthdays)]);
+}
+
+// ─── Plan Page System ─────────────────────────────────────────────────────────
+
+function planSessionsAction(): void
+{
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if (!$pageId) { jsonResponse(['sessions' => [], 'session_label' => 'Заседание']); return; }
+
+    $pdo  = db();
+    $page = $pdo->prepare('SELECT session_label FROM plan_page WHERE id = ?');
+    $page->execute([$pageId]);
+    $pageRow      = $page->fetch(PDO::FETCH_ASSOC);
+    $sessionLabel = $pageRow['session_label'] ?? 'Заседание';
+
+    $stmt = $pdo->prepare(
+        'SELECT id, title, session_date FROM plan_session
+          WHERE plan_page_id = ? ORDER BY session_date DESC, id DESC'
+    );
+    $stmt->execute([$pageId]);
+
+    jsonResponse(['sessions' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'session_label' => $sessionLabel]);
+}
+
+function planPagesAction(): void
+{
+    try {
+        $rows = db()->query('SELECT id, title, menu_title, dash_title, session_label, has_topic, sort_order FROM plan_page ORDER BY sort_order, id')->fetchAll();
+        jsonResponse(['pages' => $rows]);
+    } catch (\Throwable) {
+        jsonResponse(['pages' => []]);
+    }
+}
+
+function planPageSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+
+    $title        = trim((string)($payload['title']         ?? ''));
+    $menuTitle    = trim((string)($payload['menu_title']    ?? ''));
+    $dashTitle    = trim((string)($payload['dash_title']    ?? ''));
+    $sessionLabel = trim((string)($payload['session_label'] ?? 'Заседание'));
+    $hasTopic     = (int)!empty($payload['has_topic']);
+
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+
+    if ($id) {
+        $pdo->prepare(
+            'UPDATE plan_page SET title=:t, menu_title=:mt, dash_title=:dt, session_label=:sl, has_topic=:ht WHERE id=:id'
+        )->execute([':t' => $title, ':mt' => $menuTitle, ':dt' => $dashTitle, ':sl' => $sessionLabel, ':ht' => $hasTopic, ':id' => $id]);
+    } else {
+        $max = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM plan_page')->fetch()['m']);
+        $pdo->prepare(
+            'INSERT INTO plan_page (title, menu_title, dash_title, session_label, has_topic, sort_order) VALUES (:t,:mt,:dt,:sl,:ht,:sort)'
+        )->execute([':t' => $title, ':mt' => $menuTitle, ':dt' => $dashTitle, ':sl' => $sessionLabel, ':ht' => $hasTopic, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+
+        // Create person_plan_access rows for all persons (default 0,0)
+        $persons = $pdo->query('SELECT id FROM person')->fetchAll();
+        $stmtAcc = $pdo->prepare('INSERT OR IGNORE INTO person_plan_access (person_id, plan_page_id, can_view, can_edit) VALUES (:pid, :ppid, 0, 0)');
+        foreach ($persons as $p) {
+            $stmtAcc->execute([':pid' => (int)$p['id'], ':ppid' => $id]);
+        }
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planPageDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_page WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planPageReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_page SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTimelineAction(): void
+{
+    $pdo    = db();
+    $pageId = (int)($_GET['page_id'] ?? 1);
+    $start  = $_GET['start'] ?? date('Y-m-01');
+    $days   = max(1, min(60, (int)($_GET['days'] ?? 35)));
+
+    // Load page info
+    $pageRow = null;
+    try {
+        $stmt = $pdo->prepare('SELECT id, title, session_label, has_topic FROM plan_page WHERE id=:id LIMIT 1');
+        $stmt->execute([':id' => $pageId]);
+        $pageRow = $stmt->fetch();
+    } catch (\Throwable) {}
+    if (!$pageRow) {
+        jsonResponse(['sessions' => [], 'page' => null]);
+    }
+
+    $sessions = $pdo->prepare('SELECT id, title, session_date, topic FROM plan_session WHERE plan_page_id=:ppid ORDER BY session_date, id');
+    $sessions->execute([':ppid' => $pageId]);
+    $sessions = $sessions->fetchAll();
+
+    $taskRows = $pdo->prepare(
+        'SELECT t.id, t.session_id, t.parent_task_id, t.title, t.start_date, t.end_date, t.status,
+                GROUP_CONCAT(p.full_name, ", ") AS responsible,
+                GROUP_CONCAT(CAST(tp.person_id AS TEXT), ",") AS person_ids,
+                (SELECT d.color FROM plan_task_person tp2
+                 JOIN person p2 ON p2.id = tp2.person_id
+                 LEFT JOIN direction d ON d.id = p2.direction_id
+                 WHERE tp2.task_id = t.id
+                 ORDER BY tp2.person_id LIMIT 1) AS direction_color
+         FROM plan_task t
+         LEFT JOIN plan_task_person tp ON tp.task_id = t.id
+         LEFT JOIN person p ON p.id = tp.person_id
+         WHERE t.plan_page_id = :ppid
+         GROUP BY t.id
+         ORDER BY t.sort_order, t.start_date, t.id'
+    );
+    $taskRows->execute([':ppid' => $pageId]);
+    $taskRows = $taskRows->fetchAll();
+
+    // Conflict check
+    $conflictsByTask = [];
+    try {
+        $cRows = $pdo->prepare(
+            'SELECT tp.task_id, p.full_name, de.event_type, de.start_date AS ev_start, de.end_date AS ev_end
+             FROM plan_task_person tp
+             JOIN person p  ON p.id  = tp.person_id
+             JOIN duty_event de ON de.person_id = tp.person_id
+             JOIN plan_task t ON t.id = tp.task_id
+             WHERE t.plan_page_id = :ppid
+               AND de.event_type IN (\'vacation\', \'study\')
+               AND DATE(de.start_date) <= DATE(t.end_date)
+               AND DATE(de.end_date)   >= DATE(t.start_date)
+             ORDER BY tp.task_id, p.full_name, de.start_date'
+        );
+        $cRows->execute([':ppid' => $pageId]);
+        foreach ($cRows->fetchAll() as $r) {
+            $conflictsByTask[(int)$r['task_id']][] = [
+                'person'     => $r['full_name'],
+                'event_type' => $r['event_type'],
+                'start'      => $r['ev_start'],
+                'end'        => $r['ev_end'],
+            ];
+        }
+    } catch (\Throwable) {}
+
+    $tasksBySession = [];
+    foreach ($taskRows as $task) {
+        $task['responsible'] = $task['responsible'] ?? '';
+        $task['person_ids']  = $task['person_ids']  ?? '';
+        $task['conflicts']   = $conflictsByTask[(int)$task['id']] ?? [];
+        $tasksBySession[(int)$task['session_id']][] = $task;
+    }
+
+    $result = [];
+    foreach ($sessions as $session) {
+        $sid   = (int)$session['id'];
+        $tasks = $tasksBySession[$sid] ?? [];
+        $indexed = [];
+        foreach ($tasks as $task) {
+            $task['children'] = [];
+            $indexed[(int)$task['id']] = $task;
+        }
+        $roots = [];
+        foreach ($indexed as $id => &$task) {
+            $parentId = $task['parent_task_id'] !== null ? (int)$task['parent_task_id'] : null;
+            if ($parentId && isset($indexed[$parentId])) {
+                $indexed[$parentId]['children'][] = &$task;
+            } else {
+                $roots[] = &$task;
+            }
+        }
+        unset($task);
+
+        $result[] = [
+            'id'           => $sid,
+            'title'        => $session['title'],
+            'session_date' => $session['session_date'],
+            'topic'        => $session['topic'],
+            'tasks'        => $roots,
+        ];
+    }
+
+    jsonResponse([
+        'start'    => $start,
+        'days'     => $days,
+        'sessions' => $result,
+        'page'     => [
+            'id'            => (int)$pageRow['id'],
+            'title'         => $pageRow['title'],
+            'session_label' => $pageRow['session_label'],
+            'has_topic'     => (int)$pageRow['has_topic'],
+        ],
+    ]);
+}
+
+function planSessionSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId  = (int)($payload['page_id'] ?? 0);
+    $title   = trim((string)($payload['title']        ?? ''));
+    $date    = trim((string)($payload['session_date'] ?? ''));
+    $topic   = trim((string)($payload['topic']        ?? ''));
+
+    if ($pageId <= 0 || $title === '' || $date === '') {
+        jsonResponse(['error' => 'Заполните обязательные поля'], 422);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_session SET title=:t, session_date=:d, topic=:topic, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':t' => $title, ':d' => $date, ':topic' => $topic, ':id' => $id]);
+    } else {
+        $pdo->prepare('INSERT INTO plan_session (plan_page_id, title, session_date, topic) VALUES (:ppid,:t,:d,:topic)')
+            ->execute([':ppid' => $pageId, ':t' => $title, ':d' => $date, ':topic' => $topic]);
+        $id = (int)$pdo->lastInsertId();
+        if (!empty($payload['use_template'])) {
+            createPlanTasksFromTemplate($pdo, $id, $date, $pageId);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planSessionDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_session WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskSaveAction(): void
+{
+    $pdo       = db();
+    $payload   = getJsonPayload();
+
+    $id        = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId    = (int)($payload['page_id']        ?? 0);
+    $sessionId = (int)($payload['session_id']     ?? 0);
+    $parentId  = isset($payload['parent_task_id']) && $payload['parent_task_id'] !== '' ? (int)$payload['parent_task_id'] : null;
+    $title     = trim((string)($payload['title']      ?? ''));
+    $start     = trim((string)($payload['start_date'] ?? ''));
+    $end       = trim((string)($payload['end_date']   ?? ''));
+    $status    = trim((string)($payload['status']     ?? 'В работе'));
+    $persons   = is_array($payload['person_ids'] ?? null) ? $payload['person_ids'] : [];
+
+    if ($sessionId <= 0 || $title === '' || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Заполните поля задачи'], 422);
+    }
+
+    // Determine page_id from session if not provided
+    if ($pageId <= 0) {
+        $row = $pdo->prepare('SELECT plan_page_id FROM plan_session WHERE id=:id LIMIT 1');
+        $row->execute([':id' => $sessionId]);
+        $pageId = (int)($row->fetch()['plan_page_id'] ?? 0);
+    }
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_task SET title=:t, start_date=:s, end_date=:e, status=:st, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+            ->execute([':t' => $title, ':s' => $start, ':e' => $end, ':st' => $status, ':id' => $id]);
+    } else {
+        if ($parentId !== null) {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM plan_task WHERE parent_task_id=:pid');
+            $sortStmt->execute([':pid' => $parentId]);
+        } else {
+            $sortStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM plan_task WHERE session_id=:sid AND parent_task_id IS NULL');
+            $sortStmt->execute([':sid' => $sessionId]);
+        }
+        $sortOrder = (int)($sortStmt->fetch()['next'] ?? 1);
+
+        $pdo->prepare(
+            'INSERT INTO plan_task (plan_page_id, session_id, parent_task_id, title, start_date, end_date, status, sort_order)
+             VALUES (:ppid, :sid, :pid, :t, :s, :e, :st, :sort)'
+        )->execute([
+            ':ppid' => $pageId,
+            ':sid'  => $sessionId,
+            ':pid'  => $parentId,
+            ':t'    => $title,
+            ':s'    => $start,
+            ':e'    => $end,
+            ':st'   => $status,
+            ':sort' => $sortOrder,
+        ]);
+        $id = (int)$pdo->lastInsertId();
+    }
+
+    $pdo->prepare('DELETE FROM plan_task_person WHERE task_id=:id')->execute([':id' => $id]);
+    if ($persons) {
+        $link = $pdo->prepare('INSERT INTO plan_task_person (task_id, person_id) VALUES (:tid,:pid)');
+        foreach ($persons as $pid) {
+            $link->execute([':tid' => $id, ':pid' => (int)$pid]);
+        }
+    }
+
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskDatesAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = (int)($payload['id'] ?? 0);
+    $start   = trim((string)($payload['start_date'] ?? ''));
+    $end     = trim((string)($payload['end_date']   ?? ''));
+    if ($id <= 0 || $start === '' || $end === '') {
+        jsonResponse(['error' => 'Неверные данные'], 422);
+    }
+    $pdo->prepare('UPDATE plan_task SET start_date=:s, end_date=:e, updated_at=CURRENT_TIMESTAMP WHERE id=:id')
+        ->execute([':s' => $start, ':e' => $end, ':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTemplateTasksAction(): void
+{
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if ($pageId <= 0) jsonResponse(['error' => 'page_id обязателен'], 422);
+    try {
+        $stmt = db()->prepare('SELECT id, plan_page_id, title, days_before, duration_days, is_subtask, sort_order FROM plan_template_task WHERE plan_page_id=:ppid ORDER BY sort_order, id');
+        $stmt->execute([':ppid' => $pageId]);
+        jsonResponse(['tasks' => $stmt->fetchAll()]);
+    } catch (\Throwable) {
+        jsonResponse(['tasks' => []]);
+    }
+}
+
+function planTemplateTaskSaveAction(): void
+{
+    $pdo     = db();
+    $payload = getJsonPayload();
+    $id      = isset($payload['id']) && $payload['id'] !== '' ? (int)$payload['id'] : null;
+    $pageId  = (int)($payload['plan_page_id'] ?? 0);
+    $title   = trim((string)($payload['title'] ?? ''));
+    if ($title === '') jsonResponse(['error' => 'Название не может быть пустым'], 422);
+    $daysBefore   = max(0, (int)($payload['days_before']   ?? 0));
+    $durationDays = max(1, (int)($payload['duration_days'] ?? 1));
+    $isSubtask    = (int)(!empty($payload['is_subtask']));
+
+    if ($id) {
+        $pdo->prepare('UPDATE plan_template_task SET title=:t, days_before=:db, duration_days=:dd, is_subtask=:sub WHERE id=:id')
+            ->execute([':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':id' => $id]);
+    } else {
+        if ($pageId <= 0) jsonResponse(['error' => 'plan_page_id обязателен'], 422);
+        $maxStmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0) AS m FROM plan_template_task WHERE plan_page_id=:ppid');
+        $maxStmt->execute([':ppid' => $pageId]);
+        $max = (int)($maxStmt->fetch()['m'] ?? 0);
+        $pdo->prepare('INSERT INTO plan_template_task (plan_page_id, title, days_before, duration_days, is_subtask, sort_order) VALUES (:ppid,:t,:db,:dd,:sub,:sort)')
+            ->execute([':ppid' => $pageId, ':t' => $title, ':db' => $daysBefore, ':dd' => $durationDays, ':sub' => $isSubtask, ':sort' => $max + 1]);
+        $id = (int)$pdo->lastInsertId();
+    }
+    jsonResponse(['ok' => true, 'id' => $id]);
+}
+
+function planTemplateTaskDeleteAction(): void
+{
+    $id = (int)(getJsonPayload()['id'] ?? 0);
+    if (!$id) jsonResponse(['error' => 'id обязателен'], 422);
+    db()->prepare('DELETE FROM plan_template_task WHERE id=:id')->execute([':id' => $id]);
+    jsonResponse(['ok' => true]);
+}
+
+function planTemplateTaskReorderAction(): void
+{
+    $pdo  = db();
+    $ids  = getJsonPayload()['ids'] ?? [];
+    if (!is_array($ids)) jsonResponse(['error' => 'ids must be array'], 422);
+    $stmt = $pdo->prepare('UPDATE plan_template_task SET sort_order=:sort WHERE id=:id');
+    foreach ($ids as $i => $id) $stmt->execute([':sort' => $i + 1, ':id' => (int)$id]);
+    jsonResponse(['ok' => true]);
+}
+
+function createPlanTasksFromTemplate(PDO $pdo, int $sessionId, string $sessionDate, int $pageId): void
+{
+    $stmt = $pdo->prepare('SELECT * FROM plan_template_task WHERE plan_page_id=:ppid ORDER BY sort_order, id');
+    $stmt->execute([':ppid' => $pageId]);
+    $tasks = $stmt->fetchAll();
+    if (!$tasks) return;
+
+    $defaultStatus = $pdo->query("SELECT name FROM task_status WHERE is_system=0 ORDER BY sort_order, id LIMIT 1")->fetch()['name'] ?? 'В работе';
+    $ins = $pdo->prepare(
+        'INSERT INTO plan_task (plan_page_id, session_id, parent_task_id, title, start_date, end_date, status)
+         VALUES (:ppid, :sid, :pid, :title, :start, :end, :status)'
+    );
+    $sessionDt  = new DateTime($sessionDate);
+    $prevTaskId = null;
+
+    foreach ($tasks as $tmpl) {
+        $start    = (clone $sessionDt)->modify('-' . (int)$tmpl['days_before'] . ' days');
+        $end      = (clone $start)->modify('+' . max(0, (int)$tmpl['duration_days'] - 1) . ' days');
+        $parentId = ((int)$tmpl['is_subtask'] && $prevTaskId !== null) ? $prevTaskId : null;
+        $ins->execute([
+            ':ppid'   => $pageId,
+            ':sid'    => $sessionId,
+            ':pid'    => $parentId,
+            ':title'  => $tmpl['title'],
+            ':start'  => $start->format('Y-m-d'),
+            ':end'    => $end->format('Y-m-d'),
+            ':status' => $defaultStatus,
+        ]);
+        $prevTaskId = (int)$pdo->lastInsertId();
+    }
+}
+
+function dashboardPlanTasksAction(): void
+{
+    $pdo    = db();
+    $pageId = (int)($_GET['page_id'] ?? 0);
+    if ($pageId <= 0) jsonResponse(['tasks' => []]);
+    $today = date('Y-m-d');
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT t.id, t.parent_task_id, t.session_id, s.title AS session_title,
+                    t.title, t.start_date, t.end_date, t.status,
+                    ts.color,
+                    GROUP_CONCAT(p.last_name, ', ') AS responsible
+             FROM plan_task t
+             LEFT JOIN plan_session s ON s.id = t.session_id
+             LEFT JOIN task_status ts ON ts.name = t.status
+             LEFT JOIN plan_task_person tp ON tp.task_id = t.id
+             LEFT JOIN person p ON p.id = tp.person_id
+             WHERE t.plan_page_id = :ppid
+               AND t.start_date <= :today
+               AND t.status != 'Выполнено'
+             GROUP BY t.id
+             ORDER BY s.session_date, s.id, t.sort_order, t.start_date, t.id"
+        );
+        $stmt->execute([':ppid' => $pageId, ':today' => $today]);
+        jsonResponse(['tasks' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (\Throwable) {
+        jsonResponse(['tasks' => []]);
+    }
+}
+
+function planPagePersonAccessAction(): void
+{
+    $personId = (int)($_GET['person_id'] ?? 0);
+    if ($personId <= 0) jsonResponse(['error' => 'person_id обязателен'], 422);
+    try {
+        $stmt = db()->prepare('SELECT plan_page_id, can_view, can_edit FROM person_plan_access WHERE person_id=:pid');
+        $stmt->execute([':pid' => $personId]);
+        jsonResponse(['access' => $stmt->fetchAll()]);
+    } catch (\Throwable) {
+        jsonResponse(['access' => []]);
+    }
 }

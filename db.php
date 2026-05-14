@@ -183,6 +183,76 @@ function migrateDatabase(PDO $pdo): void
             $pdo->exec("INSERT INTO task_status (name, sort_order, color, is_system) VALUES ('Выполнено', " . ($max + 1) . ", '#22c55e', 1)");
         }
     }
+
+    // ─── Plan page system ─────────────────────────────────────────────────────
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS plan_page (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        title         TEXT    NOT NULL,
+        menu_title    TEXT    NOT NULL DEFAULT '',
+        dash_title    TEXT    NOT NULL DEFAULT '',
+        session_label TEXT    NOT NULL DEFAULT 'Заседание',
+        has_topic     INTEGER NOT NULL DEFAULT 0,
+        sort_order    INTEGER NOT NULL DEFAULT 0
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS plan_session (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_page_id INTEGER NOT NULL,
+        title       TEXT    NOT NULL,
+        session_date TEXT   NOT NULL,
+        topic       TEXT    NOT NULL DEFAULT '',
+        created_at  TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (plan_page_id) REFERENCES plan_page(id) ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS plan_task (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_page_id   INTEGER NOT NULL,
+        session_id     INTEGER NOT NULL,
+        parent_task_id INTEGER NULL,
+        title          TEXT    NOT NULL,
+        start_date     TEXT    NOT NULL,
+        end_date       TEXT    NOT NULL,
+        status         TEXT    NOT NULL DEFAULT 'В работе',
+        sort_order     INTEGER NOT NULL DEFAULT 0,
+        created_at     TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at     TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (plan_page_id)   REFERENCES plan_page(id)    ON DELETE CASCADE,
+        FOREIGN KEY (session_id)     REFERENCES plan_session(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_task_id) REFERENCES plan_task(id)    ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS plan_task_person (
+        task_id   INTEGER NOT NULL,
+        person_id INTEGER NOT NULL,
+        PRIMARY KEY (task_id, person_id),
+        FOREIGN KEY (task_id)   REFERENCES plan_task(id) ON DELETE CASCADE,
+        FOREIGN KEY (person_id) REFERENCES person(id)    ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS plan_template_task (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_page_id  INTEGER NOT NULL,
+        title         TEXT    NOT NULL,
+        days_before   INTEGER NOT NULL DEFAULT 0,
+        duration_days INTEGER NOT NULL DEFAULT 1,
+        is_subtask    INTEGER NOT NULL DEFAULT 0,
+        sort_order    INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (plan_page_id) REFERENCES plan_page(id) ON DELETE CASCADE
+    )");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS person_plan_access (
+        person_id    INTEGER NOT NULL,
+        plan_page_id INTEGER NOT NULL,
+        can_view     INTEGER NOT NULL DEFAULT 0,
+        can_edit     INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (person_id, plan_page_id),
+        FOREIGN KEY (person_id)    REFERENCES person(id)    ON DELETE CASCADE,
+        FOREIGN KEY (plan_page_id) REFERENCES plan_page(id) ON DELETE CASCADE
+    )");
+
 }
 
 function initializeDatabase(PDO $pdo): void

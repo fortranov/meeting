@@ -3,15 +3,18 @@ const PALETTE = ['#3b82f6','#f97316','#22c55e','#a855f7','#ec4899','#14b8a6','#f
 let directions            = [];
 let statuses              = [];
 let persons               = [];
-let templateTasks         = [];
-let controlTemplateTasks  = [];
+let planPages             = [];
 let holidays              = [];
 let colorSizeData         = {};
+let planTemplateTasksCache = {}; // keyed by plan_page_id
 
 
 async function init() {
   bindEvents();
-  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadTemplateTasks(), loadControlTemplateTasks(), loadHolidays(), loadSiteSettings(), loadModules()]);
+  await Promise.all([loadDirections(), loadStatuses(), loadPersons(), loadPlanPages(), loadHolidays(), loadSiteSettings(), loadModules(), loadBirthdaySettings(), loadGsrSettings()]);
+  // Force multi-column layout reflow after async data fills the cards
+  const grid = document.querySelector('.settings-grid');
+  if (grid) { grid.style.display = 'none'; grid.offsetHeight; grid.style.display = ''; }
 }
 
 function bindEvents() {
@@ -27,15 +30,14 @@ function bindEvents() {
   document.getElementById('saveStatusBtn').onclick   = saveStatus;
   document.getElementById('newStatusName').onkeydown = e => { if (e.key === 'Enter') saveStatus(); };
 
-  // Template tasks
-  document.getElementById('showAddTemplateTask').onclick   = () => openTemplateTaskModal();
-  document.getElementById('saveTemplateTaskBtn').onclick   = saveTemplateTask;
-  document.getElementById('deleteTemplateTaskBtn').onclick = () => deleteTemplateTask(Number(document.getElementById('templateTaskId').value));
+  // Plan pages
+  document.getElementById('showAddPlanPage').onclick  = () => openPlanPageModal();
+  document.getElementById('savePlanPageBtn').onclick  = savePlanPage;
+  document.getElementById('deletePlanPageBtn').onclick = () => deletePlanPage(Number(document.getElementById('planPageId').value));
 
-  // Control template tasks
-  document.getElementById('showAddControlTemplateTask').onclick   = () => openControlTemplateTaskModal();
-  document.getElementById('saveControlTemplateTaskBtn').onclick   = saveControlTemplateTask;
-  document.getElementById('deleteControlTemplateTaskBtn').onclick = () => deleteControlTemplateTask(Number(document.getElementById('controlTemplateTaskId').value));
+  // Plan template tasks
+  document.getElementById('savePlanTmplBtn').onclick   = savePlanTmplTask;
+  document.getElementById('deletePlanTmplBtn').onclick = () => deletePlanTmplTask(Number(document.getElementById('planTmplId').value));
 
   // Person modal
   document.getElementById('showAddPerson').onclick = () => openPersonModal();
@@ -46,6 +48,13 @@ function bindEvents() {
     await api('site_settings_save', { ip_access_enabled: this.checked ? '1' : '0' });
   };
 
+  // GSR settings
+  document.getElementById('saveGsrSettingsBtn').onclick = saveGsrSettings;
+
+  // Birthday settings
+  document.getElementById('birthdayUploadBtn').onclick = uploadBirthdayDocx;
+  document.getElementById('saveBirthdaySettingsBtn').onclick = saveBirthdaySettings;
+
   // Holidays
   document.getElementById('showAddHoliday').onclick = () => {
     document.getElementById('holidayDate').value = '';
@@ -55,9 +64,6 @@ function bindEvents() {
 
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.onclick = () => document.getElementById(btn.dataset.close).classList.add('hidden')
-  );
-  document.querySelectorAll('.modal').forEach(modal =>
-    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); })
   );
 }
 
@@ -258,7 +264,7 @@ function renderPersons() {
   setupDrag(list, persons, 'person_reorder', () => loadPersons());
 }
 
-function openPersonModal(id = null) {
+async function openPersonModal(id = null) {
   const modal = document.getElementById('personModal');
   modal.classList.remove('hidden');
   document.getElementById('personModalTitle').textContent = id ? 'Редактировать сотрудника' : 'Добавить сотрудника';
@@ -269,8 +275,17 @@ function openPersonModal(id = null) {
   document.getElementById('personDirection').value  = '';
   document.getElementById('personIp').value         = '';
   document.getElementById('personIsManagement').checked = false;
-  ['permMainView','permMainEdit','permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit','permCtrlView','permCtrlEdit']
+  ['permDutyView','permDutyEdit','permSettView','permSettEdit','permVacView','permVacEdit']
     .forEach(eid => { document.getElementById(eid).checked = false; });
+
+  // Populate plan page permission rows
+  const permsBody = document.getElementById('planPagePermsBody');
+  permsBody.innerHTML = planPages.map(pp => `
+    <tr data-plan-page-id="${pp.id}">
+      <td>${escHtml(pp.menu_title || pp.title)}</td>
+      <td><input type="checkbox" class="perm-plan-view" data-ppid="${pp.id}" /></td>
+      <td><input type="checkbox" class="perm-plan-edit" data-ppid="${pp.id}" /></td>
+    </tr>`).join('');
 
   if (id) {
     const p = persons.find(x => x.id === id);
@@ -281,22 +296,44 @@ function openPersonModal(id = null) {
       document.getElementById('personDirection').value = p.direction_id || '';
       document.getElementById('personIp').value        = p.ip || '';
       document.getElementById('personIsManagement').checked = !!Number(p.is_management);
-      document.getElementById('permMainView').checked  = !!Number(p.page_main_view);
-      document.getElementById('permMainEdit').checked  = !!Number(p.page_main_edit);
       document.getElementById('permDutyView').checked  = !!Number(p.page_duty_view);
       document.getElementById('permDutyEdit').checked  = !!Number(p.page_duty_edit);
       document.getElementById('permSettView').checked  = !!Number(p.page_settings_view);
       document.getElementById('permSettEdit').checked  = !!Number(p.page_settings_edit);
       document.getElementById('permVacView').checked   = !!Number(p.page_vacation_view);
       document.getElementById('permVacEdit').checked   = !!Number(p.page_vacation_edit);
-      document.getElementById('permCtrlView').checked  = !!Number(p.page_control_view);
-      document.getElementById('permCtrlEdit').checked  = !!Number(p.page_control_edit);
+
+      // Load plan page accesses
+      try {
+        const accData = await (await fetch('api.php?action=plan_page_person_access&person_id=' + id)).json();
+        const accList = accData.access || [];
+        planPages.forEach(pp => {
+          const acc = accList.find(a => Number(a.plan_page_id) === Number(pp.id));
+          const viewCb = permsBody.querySelector(`.perm-plan-view[data-ppid="${pp.id}"]`);
+          const editCb = permsBody.querySelector(`.perm-plan-edit[data-ppid="${pp.id}"]`);
+          if (viewCb) viewCb.checked = acc ? !!Number(acc.can_view) : false;
+          if (editCb) editCb.checked = acc ? !!Number(acc.can_edit) : false;
+        });
+      } catch {}
     }
   }
 }
 
 async function savePerson() {
   const id = document.getElementById('personId').value;
+  const permsBody = document.getElementById('planPagePermsBody');
+
+  // Collect plan page accesses from dynamic rows
+  const planPageAccesses = planPages.map(pp => {
+    const viewCb = permsBody.querySelector(`.perm-plan-view[data-ppid="${pp.id}"]`);
+    const editCb = permsBody.querySelector(`.perm-plan-edit[data-ppid="${pp.id}"]`);
+    return {
+      plan_page_id: pp.id,
+      can_view:     viewCb ? (viewCb.checked ? 1 : 0) : 0,
+      can_edit:     editCb ? (editCb.checked ? 1 : 0) : 0,
+    };
+  });
+
   const payload = {
     id:                 id || undefined,
     first_name:         document.getElementById('personFirstName').value.trim(),
@@ -305,16 +342,17 @@ async function savePerson() {
     direction_id:       document.getElementById('personDirection').value || null,
     ip:                 document.getElementById('personIp').value.trim(),
     is_management:      document.getElementById('personIsManagement').checked ? 1 : 0,
-    page_main_view:     document.getElementById('permMainView').checked  ? 1 : 0,
-    page_main_edit:     document.getElementById('permMainEdit').checked  ? 1 : 0,
+    page_main_view:     0,
+    page_main_edit:     0,
     page_duty_view:     document.getElementById('permDutyView').checked  ? 1 : 0,
     page_duty_edit:     document.getElementById('permDutyEdit').checked  ? 1 : 0,
     page_settings_view: document.getElementById('permSettView').checked  ? 1 : 0,
     page_settings_edit: document.getElementById('permSettEdit').checked  ? 1 : 0,
     page_vacation_view: document.getElementById('permVacView').checked   ? 1 : 0,
     page_vacation_edit: document.getElementById('permVacEdit').checked   ? 1 : 0,
-    page_control_view:  document.getElementById('permCtrlView').checked  ? 1 : 0,
-    page_control_edit:  document.getElementById('permCtrlEdit').checked  ? 1 : 0,
+    page_control_view:  0,
+    page_control_edit:  0,
+    plan_page_accesses: planPageAccesses,
   };
   if (!payload.first_name && !payload.last_name) return alert('Введите имя или фамилию');
   await api('person_save', payload);
@@ -338,109 +376,127 @@ async function deletePerson(id) {
   await loadPersons();
 }
 
-// ─── Template Tasks ───────────────────────────────────────
-async function loadTemplateTasks() {
-  const data = await api('template_tasks');
-  templateTasks = data.tasks || [];
-  renderTemplateTasks();
+// ─── Plan Pages ───────────────────────────────────────────
+
+async function loadPlanPages() {
+  try {
+    const data = await api('plan_pages');
+    planPages = data.pages || [];
+  } catch {
+    planPages = [];
+  }
+  renderPlanPages();
+  renderAllPlanTemplateCards();
 }
 
-function renderTemplateTasks() {
-  const list = document.getElementById('templateTasksList');
-  if (!templateTasks.length) {
-    list.innerHTML = '<div class="empty-hint">Шаблон пуст — добавьте задачи</div>';
+function renderPlanPages() {
+  const list = document.getElementById('planPagesList');
+  if (!planPages.length) {
+    list.innerHTML = '<div class="empty-hint">Нет страниц планов</div>';
     return;
   }
-  list.innerHTML = templateTasks.map(t => `
-    <div class="setting-item" data-id="${t.id}" draggable="true">
-      <span class="drag-handle" title="Перетащить">⠿</span>
-      ${Number(t.is_subtask) ? '<span class="subtask-badge" title="Подзадача">↳</span>' : '<span class="subtask-spacer"></span>'}
+  list.innerHTML = planPages.map(p => `
+    <div class="setting-item" data-id="${p.id}">
       <div class="tmpl-info">
-        <span class="tmpl-title">${escHtml(t.title)}</span>
-        <span class="tmpl-meta">за ${t.days_before} дн. до · ${t.duration_days} дн.</span>
+        <span class="tmpl-title">${escHtml(p.menu_title || p.title)}</span>
+        <span class="tmpl-meta">${escHtml(p.session_label)}</span>
       </div>
       <div class="item-actions">
-        <button class="btn-icon-sm btn-edit" data-id="${t.id}" title="Редактировать">✎</button>
-        <button class="btn-icon-del" data-id="${t.id}" title="Удалить">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
-        </button>
+        <button class="btn-icon-sm btn-edit" data-id="${p.id}" title="Редактировать">✎</button>
       </div>
     </div>`).join('');
-
   list.querySelectorAll('.btn-edit').forEach(btn =>
-    btn.onclick = () => openTemplateTaskModal(Number(btn.dataset.id))
+    btn.onclick = () => openPlanPageModal(Number(btn.dataset.id))
   );
-  list.querySelectorAll('.btn-icon-del').forEach(btn =>
-    btn.onclick = () => deleteTemplateTask(Number(btn.dataset.id))
-  );
-  setupDrag(list, templateTasks, 'template_task_reorder', () => loadTemplateTasks());
 }
 
-function openTemplateTaskModal(id = null) {
-  document.getElementById('templateTaskModal').classList.remove('hidden');
-  document.getElementById('templateTaskModalTitle').textContent = id ? 'Редактировать задачу шаблона' : 'Добавить задачу в шаблон';
-  document.getElementById('templateTaskId').value   = id || '';
-  document.getElementById('tmplTitle').value        = '';
-  document.getElementById('tmplDaysBefore').value   = 0;
-  document.getElementById('tmplDuration').value     = 1;
-  document.getElementById('deleteTemplateTaskBtn').classList.toggle('hidden', !id);
-
-  const subtaskCb = document.getElementById('tmplIsSubtask');
-  subtaskCb.checked  = false;
+function openPlanPageModal(id = null) {
+  document.getElementById('planPageModal').classList.remove('hidden');
+  document.getElementById('planPageModalTitle').textContent = id ? 'Редактировать страницу плана' : 'Добавить страницу плана';
+  document.getElementById('planPageId').value           = id || '';
+  document.getElementById('planPageTitle').value        = '';
+  document.getElementById('planPageMenuTitle').value    = '';
+  document.getElementById('planPageDashTitle').value    = '';
+  document.getElementById('planPageSessionLabel').value = '';
+  document.getElementById('planPageHasTopic').checked   = false;
+  document.getElementById('deletePlanPageBtn').classList.toggle('hidden', !id);
 
   if (id) {
-    const t = templateTasks.find(x => Number(x.id) === id);
-    if (t) {
-      document.getElementById('tmplTitle').value      = t.title;
-      document.getElementById('tmplDaysBefore').value = t.days_before;
-      document.getElementById('tmplDuration').value   = t.duration_days;
-      subtaskCb.checked  = Boolean(Number(t.is_subtask));
-      // Disable subtask if this is the first task in the list
-      subtaskCb.disabled = Number(templateTasks[0]?.id) === id;
+    const p = planPages.find(x => Number(x.id) === id);
+    if (p) {
+      document.getElementById('planPageTitle').value        = p.title        || '';
+      document.getElementById('planPageMenuTitle').value    = p.menu_title   || '';
+      document.getElementById('planPageDashTitle').value    = p.dash_title   || '';
+      document.getElementById('planPageSessionLabel').value = p.session_label || '';
+      document.getElementById('planPageHasTopic').checked   = Boolean(Number(p.has_topic));
     }
-  } else {
-    // Disable subtask if template is empty (would be first)
-    subtaskCb.disabled = templateTasks.length === 0;
   }
 }
 
-async function saveTemplateTask() {
-  const id    = document.getElementById('templateTaskId').value;
-  const title = document.getElementById('tmplTitle').value.trim();
-  if (!title) return alert('Введите название задачи');
+async function savePlanPage() {
+  const id = document.getElementById('planPageId').value;
   const payload = {
     id:            id || undefined,
-    title,
-    days_before:   Math.max(0, Number(document.getElementById('tmplDaysBefore').value) || 0),
-    duration_days: Math.max(1, Number(document.getElementById('tmplDuration').value)   || 1),
-    is_subtask:    document.getElementById('tmplIsSubtask').checked ? 1 : 0,
+    title:         document.getElementById('planPageTitle').value.trim(),
+    menu_title:    document.getElementById('planPageMenuTitle').value.trim(),
+    dash_title:    document.getElementById('planPageDashTitle').value.trim(),
+    session_label: document.getElementById('planPageSessionLabel').value.trim() || 'Заседание',
+    has_topic:     document.getElementById('planPageHasTopic').checked ? 1 : 0,
   };
-  await api('template_task_save', payload);
-  document.getElementById('templateTaskModal').classList.add('hidden');
-  await loadTemplateTasks();
+  if (!payload.title) return alert('Введите название страницы');
+  await api('plan_page_save', payload);
+  document.getElementById('planPageModal').classList.add('hidden');
+  await loadPlanPages();
 }
 
-async function deleteTemplateTask(id) {
-  if (!id || !confirm('Удалить задачу из шаблона?')) return;
-  await api('template_task_delete', { id });
-  document.getElementById('templateTaskModal').classList.add('hidden');
-  await loadTemplateTasks();
+async function deletePlanPage(id) {
+  if (!id || !confirm('Удалить страницу плана и все её сессии, задачи и шаблоны?')) return;
+  await api('plan_page_delete', { id });
+  document.getElementById('planPageModal').classList.add('hidden');
+  await loadPlanPages();
 }
 
-// ─── Control Template Tasks ───────────────────────────────
-async function loadControlTemplateTasks() {
-  const data = await api('control_template_tasks');
-  controlTemplateTasks = data.tasks || [];
-  renderControlTemplateTasks();
+// ─── Plan Template Tasks (per plan_page) ──────────────────
+
+function renderAllPlanTemplateCards() {
+  const container = document.getElementById('planTemplateCards');
+  container.innerHTML = '';
+  planPages.forEach(p => {
+    const card = document.createElement('section');
+    card.className = 'settings-card';
+    card.id = 'planTmplCard_' + p.id;
+    card.innerHTML = `
+      <div class="settings-card-header">
+        <h2>Шаблон: ${escHtml(p.title)}</h2>
+        <button class="btn-add" data-plan-page-id="${p.id}">+ Добавить задачу</button>
+      </div>
+      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового элемента «${escHtml(p.session_label)}» с опцией «На основе шаблона».</p>
+      <div class="settings-list" id="planTmplList_${p.id}"><div class="empty-hint">Загрузка…</div></div>`;
+    card.querySelector('[data-plan-page-id]').onclick = () => openPlanTmplModal(p.id);
+    container.appendChild(card);
+    loadPlanTemplateTasks(p.id);
+  });
 }
 
-function renderControlTemplateTasks() {
-  const list = document.getElementById('controlTemplateTasksList');
-  if (!controlTemplateTasks.length) {
+async function loadPlanTemplateTasks(pageId) {
+  try {
+    const data = await (await fetch('api.php?action=plan_template_tasks&page_id=' + pageId)).json();
+    planTemplateTasksCache[pageId] = data.tasks || [];
+  } catch {
+    planTemplateTasksCache[pageId] = [];
+  }
+  renderPlanTemplateTasks(pageId);
+}
+
+function renderPlanTemplateTasks(pageId) {
+  const list = document.getElementById('planTmplList_' + pageId);
+  if (!list) return;
+  const tasks = planTemplateTasksCache[pageId] || [];
+  if (!tasks.length) {
     list.innerHTML = '<div class="empty-hint">Шаблон пуст — добавьте задачи</div>';
     return;
   }
-  list.innerHTML = controlTemplateTasks.map(t => `
+  list.innerHTML = tasks.map(t => `
     <div class="setting-item" data-id="${t.id}" draggable="true">
       <span class="drag-handle" title="Перетащить">⠿</span>
       ${Number(t.is_subtask) ? '<span class="subtask-badge" title="Подзадача">↳</span>' : '<span class="subtask-spacer"></span>'}
@@ -457,61 +513,65 @@ function renderControlTemplateTasks() {
     </div>`).join('');
 
   list.querySelectorAll('.btn-edit').forEach(btn =>
-    btn.onclick = () => openControlTemplateTaskModal(Number(btn.dataset.id))
+    btn.onclick = () => openPlanTmplModal(pageId, Number(btn.dataset.id))
   );
   list.querySelectorAll('.btn-icon-del').forEach(btn =>
-    btn.onclick = () => deleteControlTemplateTask(Number(btn.dataset.id))
+    btn.onclick = () => deletePlanTmplTask(Number(btn.dataset.id), pageId)
   );
-  setupDrag(list, controlTemplateTasks, 'control_template_task_reorder', () => loadControlTemplateTasks());
+  setupDrag(list, tasks, 'plan_template_task_reorder', () => loadPlanTemplateTasks(pageId));
 }
 
-function openControlTemplateTaskModal(id = null) {
-  document.getElementById('controlTemplateTaskModal').classList.remove('hidden');
-  document.getElementById('controlTemplateTaskModalTitle').textContent = id ? 'Редактировать задачу шаблона' : 'Добавить задачу в шаблон контроля';
-  document.getElementById('controlTemplateTaskId').value = id || '';
-  document.getElementById('ctmplTitle').value        = '';
-  document.getElementById('ctmplDaysBefore').value   = 0;
-  document.getElementById('ctmplDuration').value     = 1;
-  document.getElementById('deleteControlTemplateTaskBtn').classList.toggle('hidden', !id);
+function openPlanTmplModal(pageId, id = null) {
+  document.getElementById('planTmplModal').classList.remove('hidden');
+  document.getElementById('planTmplModalTitle').textContent = id ? 'Редактировать задачу шаблона' : 'Добавить задачу в шаблон';
+  document.getElementById('planTmplId').value        = id || '';
+  document.getElementById('planTmplPageId').value    = pageId;
+  document.getElementById('planTmplTitle').value     = '';
+  document.getElementById('planTmplDaysBefore').value = 0;
+  document.getElementById('planTmplDuration').value  = 1;
+  document.getElementById('deletePlanTmplBtn').classList.toggle('hidden', !id);
 
-  const subtaskCb = document.getElementById('ctmplIsSubtask');
+  const subtaskCb = document.getElementById('planTmplIsSubtask');
   subtaskCb.checked = false;
+  const tasks = planTemplateTasksCache[pageId] || [];
 
   if (id) {
-    const t = controlTemplateTasks.find(x => Number(x.id) === id);
+    const t = tasks.find(x => Number(x.id) === id);
     if (t) {
-      document.getElementById('ctmplTitle').value      = t.title;
-      document.getElementById('ctmplDaysBefore').value = t.days_before;
-      document.getElementById('ctmplDuration').value   = t.duration_days;
+      document.getElementById('planTmplTitle').value      = t.title;
+      document.getElementById('planTmplDaysBefore').value = t.days_before;
+      document.getElementById('planTmplDuration').value   = t.duration_days;
       subtaskCb.checked  = Boolean(Number(t.is_subtask));
-      subtaskCb.disabled = Number(controlTemplateTasks[0]?.id) === id;
+      subtaskCb.disabled = Number(tasks[0]?.id) === id;
     }
   } else {
-    subtaskCb.disabled = controlTemplateTasks.length === 0;
+    subtaskCb.disabled = tasks.length === 0;
   }
 }
 
-async function saveControlTemplateTask() {
-  const id    = document.getElementById('controlTemplateTaskId').value;
-  const title = document.getElementById('ctmplTitle').value.trim();
+async function savePlanTmplTask() {
+  const id     = document.getElementById('planTmplId').value;
+  const pageId = Number(document.getElementById('planTmplPageId').value);
+  const title  = document.getElementById('planTmplTitle').value.trim();
   if (!title) return alert('Введите название задачи');
   const payload = {
     id:            id || undefined,
+    plan_page_id:  pageId,
     title,
-    days_before:   Math.max(0, Number(document.getElementById('ctmplDaysBefore').value) || 0),
-    duration_days: Math.max(1, Number(document.getElementById('ctmplDuration').value)   || 1),
-    is_subtask:    document.getElementById('ctmplIsSubtask').checked ? 1 : 0,
+    days_before:   Math.max(0, Number(document.getElementById('planTmplDaysBefore').value) || 0),
+    duration_days: Math.max(1, Number(document.getElementById('planTmplDuration').value)   || 1),
+    is_subtask:    document.getElementById('planTmplIsSubtask').checked ? 1 : 0,
   };
-  await api('control_template_task_save', payload);
-  document.getElementById('controlTemplateTaskModal').classList.add('hidden');
-  await loadControlTemplateTasks();
+  await api('plan_template_task_save', payload);
+  document.getElementById('planTmplModal').classList.add('hidden');
+  await loadPlanTemplateTasks(pageId);
 }
 
-async function deleteControlTemplateTask(id) {
+async function deletePlanTmplTask(id, pageId) {
   if (!id || !confirm('Удалить задачу из шаблона?')) return;
-  await api('control_template_task_delete', { id });
-  document.getElementById('controlTemplateTaskModal').classList.add('hidden');
-  await loadControlTemplateTasks();
+  await api('plan_template_task_delete', { id });
+  document.getElementById('planTmplModal').classList.add('hidden');
+  if (pageId) await loadPlanTemplateTasks(pageId);
 }
 
 // ─── Holidays ─────────────────────────────────────────────
@@ -735,6 +795,93 @@ async function loadModules() {
       localStorage.setItem(ENABLED_KEY, JSON.stringify([...current]));
     });
   });
+}
+
+// ─── GSR Settings ─────────────────────────────────────────
+
+async function loadGsrSettings() {
+  const data = await api('gsr_settings_get');
+  document.getElementById('gsrFolderPath').value = data.folder_path              || '';
+  document.getElementById('gsrFileName').value   = data.file_name                || '';
+  document.getElementById('gsrTextResp').value   = data.text_before_responsible  || '';
+  document.getElementById('gsrTextCol1').value   = data.text_col1                || '';
+  document.getElementById('gsrTextRow1').value   = data.text_row1                || '';
+  document.getElementById('gsrTextRow2').value   = data.text_row2                || '';
+  document.getElementById('gsrTextRow3').value   = data.text_row3                || '';
+  document.getElementById('gsrTextRow4').value   = data.text_row4                || '';
+  updateGsrCacheInfo(data);
+}
+
+function updateGsrCacheInfo(data) {
+  const el = document.getElementById('gsrCacheInfo');
+  if (!el) return;
+  if (data.cache_error) {
+    el.textContent = `Ошибка последнего разбора: ${data.cache_error}`;
+  } else if (data.cache_parsed_at) {
+    el.textContent = `Последний разбор: ${data.cache_parsed_at}`;
+  } else {
+    el.textContent = 'Кэш не сформирован';
+  }
+}
+
+async function saveGsrSettings() {
+  const payload = {
+    folder_path:             document.getElementById('gsrFolderPath').value.trim(),
+    file_name:               document.getElementById('gsrFileName').value.trim(),
+    text_before_responsible: document.getElementById('gsrTextResp').value.trim(),
+    text_col1:               document.getElementById('gsrTextCol1').value.trim(),
+    text_row1:               document.getElementById('gsrTextRow1').value.trim(),
+    text_row2:               document.getElementById('gsrTextRow2').value.trim(),
+    text_row3:               document.getElementById('gsrTextRow3').value.trim(),
+    text_row4:               document.getElementById('gsrTextRow4').value.trim(),
+  };
+  await api('gsr_settings_save', payload);
+  document.getElementById('gsrCacheInfo').textContent = 'Настройки сохранены, кэш сброшен';
+}
+
+// ─── Birthday Settings ────────────────────────────────────
+
+async function loadBirthdaySettings() {
+  const data = await api('birthday_settings_get');
+  document.getElementById('birthdayDaysBack').value = data.days_back ?? 2;
+  document.getElementById('birthdayDaysFwd').value  = data.days_forward ?? 30;
+  updateBirthdayCount(data.count ?? 0);
+}
+
+function updateBirthdayCount(count) {
+  const el = document.getElementById('birthdayCountInfo');
+  if (el) el.textContent = count > 0 ? `Загружено записей: ${count}` : 'Записи не загружены';
+}
+
+async function saveBirthdaySettings() {
+  const daysBack = parseInt(document.getElementById('birthdayDaysBack').value, 10) || 0;
+  const daysFwd  = parseInt(document.getElementById('birthdayDaysFwd').value, 10)  || 0;
+  await api('birthday_settings_save', { days_back: daysBack, days_forward: daysFwd });
+}
+
+async function uploadBirthdayDocx() {
+  const input = document.getElementById('birthdayDocxFile');
+  const file  = input.files?.[0];
+  if (!file) { alert('Выберите .docx файл'); return; }
+
+  const btn = document.getElementById('birthdayUploadBtn');
+  btn.disabled = true;
+  btn.textContent = 'Загрузка…';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res  = await fetch('api.php?action=birthday_docx_upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert('Ошибка: ' + data.error); return; }
+    updateBirthdayCount(data.count ?? 0);
+    input.value = '';
+  } catch {
+    alert('Ошибка при загрузке файла');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Загрузить и разобрать';
+  }
 }
 
 init();

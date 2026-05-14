@@ -1,0 +1,21 @@
+.gsr-responsible {
+  padding: 8px 16px 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.gsr-row {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.gsr-row:last-child {
+  border-bottom: none;
+}
+.gsr-no-data {
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}

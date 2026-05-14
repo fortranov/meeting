@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/access.php';
+require_once __DIR__ . '/nav.php';
 db();
 $access = checkPageAccess('settings');
 if (!$access['can_view']) accessDeniedPage();
@@ -25,12 +26,7 @@ if (!$access['can_view']) accessDeniedPage();
       </span>
     </span>
   </a>
-  <nav>
-    <a href="plan.php">План заседаний</a>
-    <a href="control.php">Контроль</a>
-    <a href="duty.php">График дежурств</a>
-    <a href="vacation.php">График отпусков</a>
-  </nav>
+  <?= renderPlanPageNav('settings') ?>
   <a href="settings.php" class="active nav-settings">Настройки</a>
 </header>
 <main class="page">
@@ -84,23 +80,16 @@ if (!$access['can_view']) accessDeniedPage();
       <div id="holidaysList"></div>
     </section>
 
-    <section class="settings-card">
+    <section class="settings-card" id="planPagesCard">
       <div class="settings-card-header">
-        <h2>Шаблон заседания</h2>
-        <button class="btn-add" id="showAddTemplateTask">+ Добавить задачу</button>
+        <h2>Страницы планов</h2>
+        <button class="btn-add" id="showAddPlanPage">+ Добавить</button>
       </div>
-      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового заседания с опцией «На основе шаблона».</p>
-      <div id="templateTasksList" class="settings-list"></div>
+      <p class="settings-hint">Создавайте страницы для планирования различных мероприятий. Для каждой страницы автоматически создаётся блок на Дашборде и шаблон задач.</p>
+      <div id="planPagesList" class="settings-list"></div>
     </section>
 
-    <section class="settings-card">
-      <div class="settings-card-header">
-        <h2>Шаблон контроля за месяц</h2>
-        <button class="btn-add" id="showAddControlTemplateTask">+ Добавить задачу</button>
-      </div>
-      <p class="settings-hint">Задачи из шаблона автоматически добавляются при создании нового контроля за месяц с опцией «На основе шаблона».</p>
-      <div id="controlTemplateTasksList" class="settings-list"></div>
-    </section>
+    <div id="planTemplateCards"></div>
 
     <section class="settings-card">
       <div class="settings-card-header">
@@ -115,6 +104,46 @@ if (!$access['can_view']) accessDeniedPage();
       </div>
       <p class="settings-hint">Выберите блоки, отображаемые на странице Дашборд.</p>
       <div id="modulesList" class="settings-list"></div>
+    </section>
+
+    <section class="settings-card" id="gsrSettingsCard">
+      <div class="settings-card-header">
+        <h2>ГСР</h2>
+      </div>
+      <p class="settings-hint">Данные читаются из .docx файла в сетевой папке. Парсинг выполняется один раз в сутки после 6:00, результат кэшируется.</p>
+      <div class="gsr-settings-fields">
+        <label>Путь до папки с годом<input id="gsrFolderPath" type="text" placeholder="\\192.168.10.23\Общая\папка" /></label>
+        <label>Название файла<input id="gsrFileName" type="text" placeholder="файл.docx" /></label>
+        <label>Текст до ответственного по аппарату<input id="gsrTextResp" type="text" /></label>
+        <label>Текст первой колонки<input id="gsrTextCol1" type="text" /></label>
+        <div class="gsr-rows-grid">
+          <label>Текст первой строки<input id="gsrTextRow1" type="text" /></label>
+          <label>Текст второй строки<input id="gsrTextRow2" type="text" /></label>
+          <label>Текст третьей строки<input id="gsrTextRow3" type="text" /></label>
+          <label>Текст четвёртой строки<input id="gsrTextRow4" type="text" /></label>
+        </div>
+      </div>
+      <p id="gsrCacheInfo" class="settings-hint gsr-cache-info"></p>
+      <div class="gsr-settings-actions">
+        <button class="btn-add" id="saveGsrSettingsBtn">Сохранить настройки</button>
+      </div>
+    </section>
+
+    <section class="settings-card" id="birthdaySettingsCard">
+      <div class="settings-card-header">
+        <h2>Дни рождения</h2>
+      </div>
+      <p class="settings-hint">Загрузите .docx файл со списком дней рождений. В таблицах файла ищутся строки, где первая колонка содержит дату в формате дд.мм.гггг, а вторая — ФИО.</p>
+      <div class="birthday-upload-row">
+        <input type="file" id="birthdayDocxFile" accept=".docx" />
+        <button class="btn-add" id="birthdayUploadBtn">Загрузить и разобрать</button>
+      </div>
+      <p id="birthdayCountInfo" class="settings-hint bday-count-info"></p>
+      <div class="bday-settings-row">
+        <label>Дней назад<input id="birthdayDaysBack" type="number" min="0" value="2" /></label>
+        <label>Дней вперёд<input id="birthdayDaysFwd" type="number" min="0" value="30" /></label>
+      </div>
+      <button class="btn-add" id="saveBirthdaySettingsBtn">Сохранить настройки</button>
     </section>
 
   </div>
@@ -143,12 +172,10 @@ if (!$access['can_view']) accessDeniedPage();
         <thead>
           <tr><th>Страница</th><th>Просмотр</th><th>Редактирование</th></tr>
         </thead>
+        <tbody id="planPagePermsBody">
+          <!-- Plan page permissions rows are injected dynamically by settings.js -->
+        </tbody>
         <tbody>
-          <tr>
-            <td>План заседаний</td>
-            <td><input type="checkbox" id="permMainView" /></td>
-            <td><input type="checkbox" id="permMainEdit" /></td>
-          </tr>
           <tr>
             <td>График дежурств</td>
             <td><input type="checkbox" id="permDutyView" /></td>
@@ -163,11 +190,6 @@ if (!$access['can_view']) accessDeniedPage();
             <td>График отпусков</td>
             <td><input type="checkbox" id="permVacView" /></td>
             <td><input type="checkbox" id="permVacEdit" /></td>
-          </tr>
-          <tr>
-            <td>Контроль</td>
-            <td><input type="checkbox" id="permCtrlView" /></td>
-            <td><input type="checkbox" id="permCtrlEdit" /></td>
           </tr>
         </tbody>
       </table>
@@ -191,53 +213,50 @@ if (!$access['can_view']) accessDeniedPage();
   </div>
 </div>
 
-<!-- Template task modal -->
-<div id="templateTaskModal" class="modal hidden">
+<!-- Plan page modal -->
+<div id="planPageModal" class="modal hidden">
   <div class="modal-box">
-    <h3 id="templateTaskModalTitle">Добавить задачу в шаблон</h3>
-    <input type="hidden" id="templateTaskId" />
-    <label>Название задачи<input id="tmplTitle" /></label>
-    <div class="row2">
-      <label>Дней до заседания<input id="tmplDaysBefore" type="number" min="0" value="0" /></label>
-      <label>Длительность (дней)<input id="tmplDuration" type="number" min="1" value="1" /></label>
-    </div>
-    <label class="checkbox-label">
-      <input type="checkbox" id="tmplIsSubtask" />
-      Подзадача (дочерняя для предыдущей задачи в списке)
-    </label>
+    <h3 id="planPageModalTitle">Добавить страницу плана</h3>
+    <input type="hidden" id="planPageId" />
+    <label>Название страницы<input id="planPageTitle" /></label>
+    <label>Название меню<input id="planPageMenuTitle" /></label>
+    <label>Название для Главной страницы<input id="planPageDashTitle" /></label>
+    <label>Объединяющий элемент (название)<input id="planPageSessionLabel" placeholder="например: Заседание, Контроль за месяц" /></label>
+    <label class="checkbox-label"><input type="checkbox" id="planPageHasTopic" /> Поле «Тема» у элемента</label>
     <div class="modal-actions">
-      <button id="deleteTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
+      <button id="deletePlanPageBtn" class="btn-danger hidden">Удалить</button>
       <div style="flex:1"></div>
-      <button data-close="templateTaskModal">Отмена</button>
-      <button id="saveTemplateTaskBtn">Сохранить</button>
+      <button data-close="planPageModal">Отмена</button>
+      <button id="savePlanPageBtn">Сохранить</button>
     </div>
   </div>
 </div>
 
-<!-- Control template task modal -->
-<div id="controlTemplateTaskModal" class="modal hidden">
+<!-- Generic plan template task modal -->
+<div id="planTmplModal" class="modal hidden">
   <div class="modal-box">
-    <h3 id="controlTemplateTaskModalTitle">Добавить задачу в шаблон контроля</h3>
-    <input type="hidden" id="controlTemplateTaskId" />
-    <label>Название задачи<input id="ctmplTitle" /></label>
+    <h3 id="planTmplModalTitle">Добавить задачу в шаблон</h3>
+    <input type="hidden" id="planTmplId" />
+    <input type="hidden" id="planTmplPageId" />
+    <label>Название задачи<input id="planTmplTitle" /></label>
     <div class="row2">
-      <label>Дней до контроля<input id="ctmplDaysBefore" type="number" min="0" value="0" /></label>
-      <label>Длительность (дней)<input id="ctmplDuration" type="number" min="1" value="1" /></label>
+      <label>Дней до события<input id="planTmplDaysBefore" type="number" min="0" value="0" /></label>
+      <label>Длительность (дней)<input id="planTmplDuration" type="number" min="1" value="1" /></label>
     </div>
     <label class="checkbox-label">
-      <input type="checkbox" id="ctmplIsSubtask" />
-      Подзадача (дочерняя для предыдущей задачи в списке)
+      <input type="checkbox" id="planTmplIsSubtask" />
+      Подзадача
     </label>
     <div class="modal-actions">
-      <button id="deleteControlTemplateTaskBtn" class="btn-danger hidden">Удалить</button>
+      <button id="deletePlanTmplBtn" class="btn-danger hidden">Удалить</button>
       <div style="flex:1"></div>
-      <button data-close="controlTemplateTaskModal">Отмена</button>
-      <button id="saveControlTemplateTaskBtn">Сохранить</button>
+      <button data-close="planTmplModal">Отмена</button>
+      <button id="savePlanTmplBtn">Сохранить</button>
     </div>
   </div>
 </div>
 
 <script src="settings.js"></script>
-  <script src="brand-logo.js"></script>
+<script src="brand-logo.js"></script>
 </body>
 </html>
