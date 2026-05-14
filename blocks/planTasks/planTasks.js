@@ -43,10 +43,6 @@ function getDashTaskModal() {
     </div>`;
   document.body.appendChild(modal);
 
-  // Close on backdrop click or [data-close] button
-  modal.addEventListener('click', e => {
-    if (e.target === modal) closeDashTaskModal();
-  });
   modal.querySelector('[data-close]').onclick = closeDashTaskModal;
   document.getElementById('dtmSave').onclick  = saveDashTask;
 
